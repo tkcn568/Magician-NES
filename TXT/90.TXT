@@ -1,0 +1,7 @@
+
+final battle 9.?
+----------------
+
+00 "'you have fought bravely paul..i admire your courage. it is such a pity that i must now slay you!'"
+01 "abadon proves too powerful for you, as one more hero succumbs to the might of the evil dictator!"
+02 "your final bolt proved enough to break down abadon's defences. at long last a hero has ended the evil dictator's reign of terror!"

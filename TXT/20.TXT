@@ -1,0 +1,14 @@
+
+wilderness 2.?
+--------------
+
+00 "the sun beats down on you mercilessly. this is a barren and dangerous place."
+01 "ruined houses flank you on all sides. something terrible must have happened here."
+02 "as you pass the house you feel a magical tingle run down your spine."
+03 "the marsh ahead looks decidedly unsafe."
+04 "you sense powerful magic."
+05 "you fall down the well.."
+06 "you find an egg and a scroll inside the hollow tree!"
+07 "a statue of a wizard appears!"
+08 "the statue changes into a real wizard! he gives you a small sealed vial of earth and a scroll. he tells you his name is belseth before bidding you farewell."
+09 "dangerous marsh gas ignites around you!"

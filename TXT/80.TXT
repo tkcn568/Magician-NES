@@ -1,0 +1,13 @@
+
+tower 8.?
+---------
+
+00 "you are standing at the base of a tall tower. you try to see the top but it is lost in darkness."
+01 "the razor-edged spikes pull you towards them!"
+02 "the weight of your iron boots brings you back to earth."
+03 "an effervescent fountain brightens the room."
+04 "the far wall contains five niches. four are empty but the fifth holds an empty potion vial."
+05 "the vial is held firmly in place by an invisible force."
+06 "as soon as you attempt to use the vial it vanishes but reappears in one of the empty niches."
+07 "as the last vial takes it's place, the four elements combine to form the legendary and powerful ultimate potion!"
+08 "the force that held the vial is gone. you take the ultimate potion."

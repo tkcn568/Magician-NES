@@ -1,0 +1,16 @@
+
+caverns 5.?
+-----------
+
+00 "there isn't enough light to make out your surroundings properly, but guessing from the pungent smell of bat droppings and stale water, you're probably in a cave."
+01 "you are standing on an old, rickety wooden floor."
+02 "you are at the bottom of a large shaft."
+03 "the bones of dead creatures litter the floor."
+04 "the egg you carry pacifies the dragon. it swaps it for a magic charm."
+05 "the dragon inflicts fatal burns!"
+06 "the statue of a beautiful woman shimmers in the torchlight."
+07 "the statue starts to spit molten fire from it's eyes!"
+08 "an old woman sits rocking in a chair."
+09 "you feel power draining from you!"
+0a "the combined power of the charms make the woman young again! to show her gratitude she gives you a sealed vial of water and teleports you into abadon's castle."
+0b "a baby dragon approaches you.."

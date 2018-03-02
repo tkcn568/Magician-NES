@@ -1,0 +1,37 @@
+
+type 0:- player,spitting plant,boatman,victory machine,mushroom,talking tree
+	 talking snake,beggar,old woman,turtle,marsh gas,vines,stalagmite
+	 little dragon,wise man,young woman,fire elemental,spikes on roof,abadon
+	 treasure chest,slab,pendulum,fountain,statue,sphinx,final spell machine
+	 statue of wizard,twin man
+specific or no movement, animation and fighting.
+
+
+type 1:- barbarian,adventurer,monk,wizard
+generally, move back and forth between x limits, facing direction moving.
+if interacted with, enter attack mode or standing mode for a short time then
+resume movement.
+if attacked by plr, enter attack mode.
+if attack mode & plr not roughly on same y-pos, normal left/right movement
+else if facing plr randomly fire available spells. generally try to move
+towards/through plr but with some randomness.
+
+
+type 2:-troll,venworm,armour,skeleton,spider,stoneman,rat
+if plr not roughly on same y-pos, normal left/right movement
+else always face plr. generally move towards/through plr. randomly cast 
+available spells/use physical weapons.
+if plr health is low, attack more.
+always face plr. move towards plr. when near : advance,attack/hesitate,back off
+
+
+type 3:-beholder
+gentle bobbing movement.
+
+
+type 4:-winged serpent,werebat
+winged flying movement
+
+
+type 5:-spectre,demon
+weird ghostly movement

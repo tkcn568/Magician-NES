@@ -1,0 +1,10 @@
+
+passages 7.?
+------------
+
+00 "massive stone walls surround you."
+01 "a fiery abyss stretches before you."
+02 "a statue of a sphinx gleams in the torchlight."
+03 "as you attempt to leave, the statue comes alive and says in a booming voice.."
+04 " belseth?  mensim?  tresh?"
+05 "the statue's eyes emit deadly radiation.."

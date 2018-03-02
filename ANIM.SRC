@@ -1,0 +1,612 @@
+	;
+	;Move object left/right to specified position
+	;IN :A,Y=x-pos lo/hi
+	;OUT:C=1=done
+	;
+movel	clc
+	db $24
+mover	sec
+	eor obxl,x
+	bne !a
+	tya
+	eor obxh,x
+	beq !c
+!a	lda #$ff
+	tay
+	bcc !b
+	clc
+	lda #$01
+	iny
+!b	adc obxl,x
+	sta obxl,x
+	tya
+	adc obxh,x
+	sta obxh,x
+	clc
+	rts
+!c	sec
+	rts
+
+moveu	clc
+	db $24
+moved	sec
+	eor obyl,x
+	bne !a
+	tya
+	eor obyh,x
+	beq !c
+!a	lda #$ff
+	tay
+	bcc !b
+	clc
+	lda #$01
+	iny
+!b	adc obyl,x
+	sta obyl,x
+	tya
+	adc obyh,x
+	sta obyh,x
+	clc
+	rts
+!c	sec
+	rts
+
+
+	;
+	;Test if anim seq is finished
+	;IN :X=ob index
+	;OUT:C=1=seq finished
+	;
+chkdonep	ldy #pi	;enter here to check plr
+	db $2c
+chkdone	txa
+	tay
+
+	lda obaind,y
+	pha
+	lda obtyp,y
+	tay
+	lda obl,y
+	sta t0
+	lda obh,y
+	sta t1
+	ldy #$00
+	lda (t0),y
+	sta t2
+	iny
+	lda (t0),y
+	sta t3
+	pla
+	tay
+	lda (t2),y
+	cmp #a_done
+	beq !a
+	clc
+!a	rts
+
+	;
+	;Interpret ob animation seq
+	;IN :X=ob ind
+	;OUT:C=0=got frame,C=1=seq done
+	;
+doj	tax		;jump to handling routine
+	lda asjl-a_time,x
+	sta t0
+	lda asjh-a_time,x
+	sta t1
+	ldx obind
+	jmp (t0)
+
+asjl	dl a00,a01,a02,a03,a04,a05,a06,a07
+asjh	dh a00,a01,a02,a03,a04,a05,a06,a07
+
+
+	;
+	;Handle anim delay
+	;OUT:C=0=anim done
+	;
+dodel	lda obadel,x
+	sec
+	sbc obv
+	bcs !a
+	lda obaorg,x
+!a	sta obadel,x
+	rts
+
+	;
+	;Enter here for standard timed animation
+	;OUT:C=0=anim done
+	;
+anim	lda obadel,x	;update anim del
+	sec
+	sbc obv
+	bcc interp
+	sta obadel,x
+	rts
+
+interp	ldy obaind,x	;get seq index to cur byte
+reint	lda (afrms),y	;get byte
+	cmp #a_time	;frame or flag?
+	bcs doj
+	sta obafr1,x	;set primary frame
+	lda obaorg,x	;reset anim timing
+	sta obadel,x
+	iny
+	tya		;set seq index to next byte
+	sta obaind,x
+	sec		;C=1 - not done
+	rts
+
+
+a00	iny		;set animation timing
+	lda (afrms),y
+	sta obaorg,x
+	iny
+	bne reint
+
+a01	tya		;relative goto
+	iny
+	adc (afrms),y	;C=1
+	tay
+	bne reint
+
+a02	tya		;done
+	sta obaind,x
+	clc		;C=0 - done
+	rts
+
+a03	iny		;** mask - directly sets obstat!
+	lda (afrms),y
+	sta obstat,x
+	iny
+	bne reint	;loop
+
+a04	iny		;set secondary frame
+	lda (afrms),y
+	sta obafr2,x
+	iny
+	bne reint
+
+a06	iny		;trigger sound fx
+	lda (afrms),y
+	jsr setfx
+	iny
+	bne reint
+
+a07	iny		;trigger bullet
+	lda (afrms),y
+	and #$03
+	tax
+	inx
+	lda (afrms),y
+	lsr a
+	lsr a
+	sty t10
+	jsr nmefire
+	ldy t10
+	ldx obind
+	iny
+	bne reint
+
+a05	lda plrflg	;scan (used only by plr while turning)
+	bne !a	;skip if not walking
+	lda lr	;going straight into walking mode?
+	beq !a
+	lda #m_walk	;yes, set walking mode
+	sta obmod+pi
+	iny
+	lda fb00,y	;set frame to start at
+	sta obaind+pi
+	lda #$00	;no delay
+	sta obadel+pi
+	bpl !b
+!a	jsr setstnd
+!b	ldy obaind+pi	;set frame now
+	lda fb00,y
+	sta obafr1+pi
+	sec
+	rts
+
+
+sppals	hex 0f 10 30	;00 palette main
+	hex 11 21 30	;03 abadon
+	hex 0f 27 37	;06 fire elemental
+	hex 17 27 30	;09 talking tree
+	hex 0f 28 10	;0c old lady
+	hex 0f 32 30	;0f final spell machine
+
+
+	;
+	;Display sprite frame
+	;IN  :A=relative frame no., X=ob ind, Y=MMC3 bank 0..3
+	;     T0=frame y-shift
+	;USES:T0..T13 (TA unused)
+	;
+frame	sta te	;save frame
+
+	lda mul64,y	;set spr def bits 6-7 mask
+	sta tc
+	sty td	;set MMC3 index
+
+	lda obxl,x	;set frame x,y org
+	sec
+	sbc mapx
+	sta t10
+	lda obxh,x
+	sbc mapx+1
+	sta t11
+	lda obyl,x
+	clc
+	adc t0
+	php
+	sec
+	sbc mapy
+	sta t12
+	lda obyh,x
+	sbc mapy+1
+	plp
+	adc #$00
+	sta t13
+
+	lda obstat,x	;set frame x-flip
+	and #$10	;ALL frames are defined facing left
+	beq !a
+	lda t10	;so only need to x-flip frames facing right
+	sec		;do x-flip frame x-shift
+	sbc #$08
+	sta t10
+	lda #$40+$04*$4
+	bcs !a
+	dec t11
+!a	sta t8
+
+	lda te	;frame no.=(primary frame+frame base)*6
+	clc
+	adc fbase
+	sta te
+	lda #$00
+	adc fbase+1
+	asl te
+	rol a
+	sta tf
+	lda te
+	asl a
+	tax
+	lda tf
+	rol a
+	tay
+	txa
+	adc te
+	sta te
+	tya
+	adc tf
+	ora #>$a000
+	sta tf
+
+	ldy #$05	;set ptrs to tables
+	lda (te),y
+	tax
+	lda cpltab,x
+	sta t6
+	lda cphtab,x
+	sta t7
+	dey
+	lda (te),y
+	tax
+	lda dpltab,x
+	sta t4
+	lda dphtab,x
+	sta t5
+	dey
+	lda (te),y
+	tax
+	lda ypltab,x
+	sta t2
+	lda yphtab,x
+	sta t3
+	dey
+	lda (te),y
+	tax
+	lda xpltab,x
+	sta t0
+	lda xphtab,x
+	sta t1
+	dey		;set hardware spr bank 0..3
+	ldx td
+	lda (te),y
+	sta r2,x
+	dey
+	lda (te),y	;set no. of sprs in this frame
+	sta t9
+
+	lda (t6),y	;set palette byte
+	sta td
+	lda #$04	;set count
+	sta te
+	sty tf	;set index
+
+	lda sprind	;get spr index
+	asl a
+	asl a
+	bcs !z
+	tax
+
+!b	lda t8	;get x/y flip / 2
+	asl td	;extract 2-bit palette
+	rol a
+	asl td
+	rol a
+	sta spr+2,x	;set col+flip status
+	dec te	;need new palette byte?
+	bne !c
+	lda #$04	;yes, reset count
+	sta te
+	sty tb	;save Y
+	inc tf	;get new byte
+	ldy tf
+	lda (t6),y
+	sta td
+	ldy tb	;restore Y
+
+!c	bit t8	;x
+	lda (t0),y
+	clc
+	bvc !d
+	eor #$ff
+	adc #$01
+	clc
+!d	bmi !f
+	adc t10
+	sta spr+3,x
+	lda #$00
+	adc t11
+	beq !g
+	bne !j
+!f	adc t10
+	sta spr+3,x
+	lda #$ff
+	adc t11
+	bne !j
+
+!g	lda (t2),y	;y
+	clc
+	bmi !h
+	adc t12
+	sta spr,x
+	lda #$00
+	adc t13
+	beq !i
+	bne !j
+!h	adc t12
+	sta spr,x
+	lda #$ff
+	adc t13
+	bne !j
+
+!i	lda (t4),y	;def
+	ora tc	;+ bank
+	sta spr+1,x
+
+	inc sprind	;move to next spr
+	inx
+	inx
+	inx
+	inx
+	beq !z
+
+!j	iny		;do all sprs in this frame
+	cpy t9
+	bcc !b
+
+!z	rts		;exit
+
+mul64	hex 00 40 80 c0	;*$40 table
+
+
+	;
+	;Tidy up objects by deleting ones that are far off-scn
+	;
+tidyobs	ldy #pi-1
+	sec
+	lda hvflag
+	bmi !d
+
+	lda mapx	;do x-clipping on horiz level
+	sbc #$20
+	sta t0
+	lda mapx+1
+	sbc #$00
+	sta t1
+	lda t0
+	clc
+	adc #<$0141
+	sta t2
+	lda t1
+	bpl !0
+	ldx #$00
+	stx t0
+	stx t1
+!0	adc #>$0141
+	sta t3
+!a	lda obtyp,y
+	bmi !c
+	ldx obxl,y	;if obx < mapx-$20 then clip
+	lda obxh,y
+	cpx t0
+	sbc t1
+	bcc !b
+	lda obxh,y	;if obx > mapx+$120 then clip
+	cpx t2
+	sbc t3
+	bcc !c
+!b	lda obtyp,y	;don't delete turtles (only on horiz levels)
+	cmp #$0b
+	beq !c
+	lda #$ff	;yes, delete object
+	sta obtyp,y
+!c	dey		;tst all
+	bpl !a
+	rts
+
+!d	lda mapy	;do y-clipping on vert level
+	sbc #$20
+	sta t0
+	lda mapy+1
+	sbc #$00
+	sta t1
+	lda t0
+	clc
+	adc #<$00f1
+	sta t2
+	lda t1
+	bpl !1
+	ldx #$00
+	stx t0
+	stx t1
+!1	adc #>$00f1
+	sta t3
+!e	lda obtyp,y
+	bmi !g
+	ldx obyl,y	;off-scn to top?
+	lda obyh,y
+	cpx t0
+	sbc t1
+	bcc !f
+	lda obyh,y	;no, off-scn to bottom?
+	cpx t2
+	sbc t3
+	bcc !g
+!f	lda #$ff	;yes, delete object
+	sta obtyp,y
+!g	dey		;tst all
+	bpl !e
+ret05	rts
+
+
+	;
+	;Handle display of hidden doors
+	;
+dodoors	lda doorflg	;door active?
+	bpl ret05
+	lsr a		;yes
+	lsr a
+	lsr a
+	and #$07
+	tax
+	lda doorflg	;set scn address
+	and #$07
+	tay
+	lda dsl,x
+	clc
+	adc scnl,y
+	sta t0
+	lda dsh,x
+	adc #$00
+	sta t1
+	tya		;set data address
+	lsr a
+	tay
+	lda ddh,x
+	sta t3
+	lda ddl,x
+	dey
+	bmi !b
+	clc
+!a	adc xsize
+	tax
+	lda t3
+	adc xsize+1
+	sta t3
+	txa
+	dey
+	bpl !a
+!b	sta t2
+
+	lda doorflg	;set bloky
+	and #$01
+	sec
+	rol a
+	sta t4
+
+	pushbnk 7	;bank in map & blocks
+	bnk 7,mapbnk70
+	swapstk 0,1
+	clc
+	ldy #$03
+!c	sty t5
+	lda (t2),y	;get blok adr
+	tay
+	and #%11111100
+	adc blbase
+	sta t6
+	tya
+	and #%00000011
+	adc blbase+1
+	sta t7
+	ldy t4	;get block index
+	lda (t6),y	;get chr
+	pha		;write to DMA buffer
+	dey		;get next chr down
+	lda (t6),y
+	pha		;write
+	ldy t5
+	dey
+	bpl !c
+	lda #$08	;DMA count
+	pha
+	lda t0	;DMA lo
+	pha
+	lda t1	;DMA hi
+	pha
+	lda #tok3	;DMA address+count follows
+	pha
+	swapstk 1,0
+	popbnk 7
+
+	lda doorflg
+	and #$07
+	tax
+	lda doorflg
+	and #$08
+	bne !d
+	dex
+	stx t0
+	bne !e
+	lda doorflg
+	eor #$08
+	sta doorflg
+	bmi !e
+
+!d	inx
+	stx t0
+	cpx #8
+	bne !e
+	lsr doorflg
+	rts
+
+!e	lda doorflg
+	and #$f8
+	ora t0
+	sta doorflg
+	rts
+
+	;Ptrs to door data
+ddl
+	dl l20m+$100*$06+$0a8,l20m+$100*$06+$89	;2.0 door/wall
+	dl l60m+$114*$06+$114,l60m+$114*$06+$cb	;6.0 door/wall
+	dl l70m+$0dc*$05+$05a,l70m+$0dc*$05+$1c	;7.0 door/wall
+ddh
+	dh l20m+$100*$06+$0a8,l20m+$100*$06+$89
+	dh l60m+$114*$06+$114,l60m+$114*$06+$cb
+	dh l70m+$0dc*$05+$05a,l70m+$0dc*$05+$1c
+
+	;Door scn addresses
+dsl
+	dl sc0+$20*$14+$0a,sc0+$20*$14+$0a
+	dl sc0+$20*$14+$0e,sc0+$20*$14+$0e
+	dl sc1+$20*$12+$10,sc1+$20*$12+$10
+dsh
+	dh sc0+$20*$14+$0a,sc0+$20*$14+$0a
+	dh sc0+$20*$14+$0e,sc0+$20*$14+$0e
+	dh sc1+$20*$12+$10,sc1+$20*$12+$10
+

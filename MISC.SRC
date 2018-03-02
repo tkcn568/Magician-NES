@@ -1,0 +1,1475 @@
+
+
+	;
+	;Affect object health
+	;IN:A=signed amount to affect by, X=ob index
+	;
+harmp	ldx #pi	;enter here to harm plr
+
+harm	tay
+	beq !c	;exit if nothing to do
+	cpx #pi	;harming plr?
+	clc
+	bne !d
+
+	adc obhel+pi	;yes
+	bcs !a
+	lda #$00	;dead
+!a	sta obhel+pi
+	ldx #$07	;figure out msg
+	cmp #$ac	;172..255
+	bcs !b
+	inx
+	cmp #$57	;87..171
+	bcs !b
+	inx
+	cmp #$01	;1..85
+	bcs !b
+	lda deathseq	;dead, specific death seq?
+	bpl !a0
+	lda rn	;no, pick one randomly
+	and #$03
+	adc #d_twinkle
+!a0	jsr killplr
+	lda #%01100000	;set plr to no explode,no damage
+	sta obchr+pi	;in case any storms continuing
+	ldx #$0a
+!b	cpx helmsg	;only send it once
+	beq !c
+	stx helmsg
+	jmp miscmsg
+!c	rts
+
+!d	adc obhel,x	;handle other obs
+	bcc killob	;not dead
+	sta obhel,x
+	lda obchr,x	;ob attacking plr?
+	and #%00001100
+	cmp #%00001100
+	beq !e
+	lda obchr,x	;no, set to permanent attack
+	ora #%00001100
+	sta obchr,x
+	lda #$02
+	jmp set4oi
+!e	rts
+
+	;
+	;Call to kill object (NOT plr)
+	;IN :X=ob ind
+	;
+killob	txa		;set ob event flag to dead,not searched
+	pha
+	jsr get4oi
+	and #$03
+	ora #$04
+	jsr set4
+	pla
+	tax
+	lda obchr,x	;set interaction ctrl to always 'no one there'
+	and #%01000011	;set bullet control to physical
+	ora #%00100000	;no explode, no damage
+	sta obchr,x
+	lda #$02	;set obmod to 'just been killed'
+	sta obmod,x
+	lda obafr1,x	;set alt blank frm for 'flashing'
+	eor #$ff
+	sta obven,x
+	lda #$3c	;set 'flash' timer
+	sta obadel,x
+	lda #$00
+koa	sta obhel,x	;set health=0
+	rts
+
+
+	;
+	;Check if need to convert ob to chest after death
+	;OUT:N=0=convert, chest no. in OBCHEST
+	;
+chkchest	ldy #numch	;chk if ob must convert to a chest
+!a	lda curlev
+	cmp chlev,y
+	bne !b
+	lda obeno,x
+	cmp chevn,y
+	beq !c
+!b	dey
+	bpl !a
+!c	tya		;if chest found
+	bmi !d
+	adc #choff1-1	;convert to dead ob triggered chest
+!d	sta obchest,x
+	rts
+
+chlev	hex 20	;ob>chest level
+chevn	hex 15	;ob>chest event no.
+numch	equ *-chevn-1
+
+
+	;
+	;Kill player
+	;IN  :A=death type
+	;USES:A,X
+	;
+killplr	bit deathtyp	;already dying?
+	bpl !a
+	sta deathtyp	;no, set death type
+	ldx #%00111000	;disable joypad buttons but allow movement
+	stx ctrl
+	ldx #$00
+	stx obhel+pi	;zero health
+	stx obmaflg+pi	;normal speed+weight
+	ldx plrflg	;was plr in air?
+	beq !b
+	jmp setfall	;yes, make him fall
+!a	rts
+!b
+
+
+	;
+	;Change plr from normal mode to dying mode
+	;
+setdeath	lda #%11111000	;stop all movement
+	sta ctrl
+	ldx deathtyp	;get death type as index
+	lda dfrs,x	;set anim index
+	sta obaind+pi
+	lda #$00	;init anim timing
+	sta obadel+pi
+	txa		;set death mode
+	clc
+	adc #m_drown
+	sta obmod+pi
+	lda #$1a	;set death tune len
+	sta deathtime
+	mus 4		;set death tune
+ret02	rts
+
+dfrs	db pstand+4-fb00,pstand+4-fb00
+	db pde0-fb00,pde1-fb00,pde2-fb00,pde3-fb00,pde4-fb00
+	db pde0-fb00,pde0-fb00
+
+
+	;
+	;Add health points to plr health
+	;IN:A=amount of extra health
+	;
+heal	clc
+	adc obhel+pi
+	bcc !a	;limit to 255
+	lda #$ff
+!a	sta obhel+pi
+	rts
+
+
+	;
+	;Set plr standing mode
+	;OUT:A=00,C=1,Z=1
+	;USES:A, T0
+	;
+setstnd	lda obstat+pi
+setstnda	and #$03	;enter here to set facing in A
+	sta t0
+	cmp #$01
+	bne !a
+	ora #$10	;x-flip if facing right
+!a	sta obstat+pi
+	lda t0
+	asl a
+	beq !b	;handle l/r
+	sbc #$02-1	;C=0
+	clc
+!b	adc #pstand-fb00
+	sta obaind+pi
+	lda #m_stand	;** A=$01 - set standing mode
+	sta obmod+pi
+	lsr a
+	sta obadel+pi
+	sta plrxvel
+	rts		;& exit
+
+	;
+	;Set plr back on ground after fly/fall/jump
+	;
+unfly	sfx 22
+	lda deathtyp
+	bmi !a
+	ora #$c0
+	sta deathtyp
+!a	lda forfloor	;force plr onto floor
+	ldx curlev	;handle forest
+	cpx #$40
+	beq !b
+	lda obyl+pi
+	clc
+	adc plryvel
+	sec
+	sbc #$04
+	and #$f8
+	clc
+	adc #$04
+!b	sta obyl+pi
+	ldx #$01
+	stx serflg	;stop instant search
+	stx yvel0	;normal speed y scrolling
+	dex
+	stx plrflg	;flag no flying/jumping/falling
+	stx plrxvel	;no x/y-movement
+	stx plryvel
+	lda obstat+pi	;facing l/r?
+	and #$13
+	bit msk0+1
+	bne setstnd
+	sta obstat+pi
+	lda lr	;yes, going straight into walking mode?
+	beq setstnd
+	lda #m_walk	;yes, set walking mode
+	sta obmod+pi
+	lda #pwalk-fb00	;set frame to start at
+	sta obaind+pi
+	stx obafr1+pi	;set frm
+	stx obadel+pi	;no delay
+	rts
+
+	;
+	;Set falling mode
+	;
+setfall	lda #m_fall	;already falling?
+	cmp obmod+pi
+	beq !a
+	sta obmod+pi	;no, set it
+	lda #$01
+	sta cnt	;init fall table del
+	sta ind	;init fall table index
+	bit plrflg
+	sta plrflg	;1=falling
+	bvs !a	;no sfx if fall after jump
+	sfx 05,jmp
+!a	rts
+
+
+	;
+	;Set turning mode
+	;IN  :A=new dir
+	;USES:A, Y, T0
+	;
+setturn	and #$03	;set anim index for ob turning seq
+	asl a
+	asl a
+	sta t0
+	lda obstat+pi
+	and #$03
+	ora t0
+	tay
+	lda turnind,y
+	sta obaind+pi
+	lda #$05	;set anim speed
+	sta obaorg+pi
+	lda #m_turn	;** A=$02 - set turning mode
+	sta obmod+pi
+	lda #$00	;set no anim del so frame will change instantly
+	sta obadel+pi
+	sta plrxvel
+	rts
+
+	;Indexes to turning seqs
+turnind	db 0,ptrl-fb00,ptul-fb00,ptdl-fb00
+	db ptlr-fb00,0,ptur-fb00,ptdr-fb00
+	db ptlu-fb00,ptru-fb00,0,ptdu-fb00
+	db ptld-fb00,ptrd-fb00,ptud-fb00,0
+
+
+	;
+	;Set new ob mode / anim index
+	;IN:A=anim index, X=ob index, Y=mode
+	;
+modenexts	lda obaind,x	;enter here to use same anim index
+modenext	ldy obmod,x	;set ob mode + 1
+	iny
+modey	sta obaind,x	;set anim index
+modeyy	tya		;set ob mode
+	sta obmod,x
+	lda #$00	;set no anim del so frame will change instantly
+	sta obadel,x
+	rts
+
+
+	;
+	;Forest height handling
+	;IN :PLXVEL=amount to move plr by
+	;OUT:A=new forest floor y-pos, X=new plrxchr (both non-updated)
+	;   :C=1=no floor-y change, C=0=floor-y changed
+	;
+forlr	ldx #$00	;move plr left/right
+	lda plrxvel
+	clc
+	adc #$08
+	bpl !a
+	dex
+!a	clc
+	adc obxl+pi
+	tay
+	txa
+	adc obxh+pi
+	sta t1
+
+	tya		;get new x-chr pos
+	lsr t1
+	ror a
+	lsr t1
+	ror a
+	lsr t1
+	ror a
+
+	cmp plrxchr	;changed?
+	bne !b
+	tax		;no, exit with same values
+	lda forfloor
+	rts
+
+!b	sta t0	;yes, get bit index
+	and #$03
+	tay
+
+	lda t0	;get byte index
+	lsr t1
+	ror a
+	lsr t1
+	ror a
+	tax
+	bit plrxvel
+	bpl !c
+	iny		;forward a vector if moving left
+	cpy #$04
+	bne !c
+	ldy #$00
+	inx
+!c	lda forground,x	;extract bits
+	dey
+	bmi !1
+!0	lsr a
+	lsr a
+	dey
+	bpl !0
+!1	and #$03
+	tax
+	lda plrxvel
+	asl a
+	lda hdtab,x	;get height diff : 0=flat, 1=up, 2=down
+	bcc !d
+	eor #$ff	;negate offset if needed
+!d	adc forfloor	;updated floor y-pos
+	ldx t0	;updated plr x-chr pos
+	clc
+	rts
+
+FORGROUND	HEX 008004804A0180AA5405000050555555	;packed 2-bit HDTAB indexes
+	HEX 85040686090680AA0AA8AA0200000000
+	HEX 00000000000000000000000000000000
+	HEX 00005555555548000080AAAAAAAA8104
+	HEX 80840000000010800480044800555555
+	HEX 554880A9AAAAAA820100000000000000
+	HEX 06484880040048004800800480545555
+	HEX 5585048084198084AA2AA85400000000
+	HEX 80AA2A48000648000080010018505505
+	HEX 00800100000000000000000000000000
+
+hdtab	db 0,-2,2	;height difference table
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	;
+	;Perform plr character detection to l/r or u/d of plr
+	;IN 	:A=L/R/U/D signed pixel offset
+	;OUT	:T0..T5=translated chrs
+	;USES	:A, X, Y, T0..TD
+	;
+chrdetlr	ldx #$01
+	stx td	;move r
+	dex		;set x+offset,y
+	tay
+	bpl !a
+	dex		;set x-offset,y
+!a	clc
+	adc obxl+pi
+	sta t6
+	txa
+	adc obxh+pi
+	sta t7
+	lda obyl+pi	;adjust y
+	sec
+	sbc #$0c
+	sta t8
+	lda obyh+pi
+	sbc #$00
+	sta t9
+	ldx #$06
+	bcs cuda
+
+chrdetud	sty tc	;set no. of chrs to chk
+	ldx #$00	;set x,y+offset
+	stx td	;move d
+	tay
+	bpl !a
+	dex		;set x,y-offset
+!a	clc
+	adc obyl+pi
+	sta t8
+	txa
+	adc obyh+pi
+	sta t9
+	lda obxl+pi	;adjust x
+	sec
+	sbc #$04
+	sta t6
+	lda obxh+pi
+	sbc #$00
+	sta t7
+	ldx #$02
+cuda	stx tc	;set no. of chrs to check
+
+	;
+	;Get row/column of chr types from map
+	;IN  :T6/T7=x-pos, T8/T9=y-pos, TC=no. of chrs, TD=right/down flag
+	;OUT :T0..T0+(TC)-1=chr types, A=last chr checked
+	;USES:A, X, Y, T0..T0+(TC)-1,T6..TD
+	;
+chkchr	lda #$07	;bank in map & blocks
+	sta bnksel
+	sta $8000
+	lda mapbnk70
+	sta $8001
+
+	lda t6	;calc landx & blokx
+	lsr t7
+	ror a
+	lsr t7
+	ror a
+	lsr t7
+	ror a
+	lsr t7
+	ror a
+	sta t6
+	lda #$00
+	rol a
+	sta ta
+
+	lda t8	;calc landy & bloky
+	lsr t9
+	ror a
+	lsr t9
+	ror a
+	lsr t9
+	ror a
+	lsr t9
+	ror a
+	sta t8
+	lda #$00
+	rol a
+	asl a
+	sta tb
+
+	ldy t8	;calc landy * xsize + landx + bmbase
+	lda xsize
+	jsr mul8
+	clc
+	adc bmbase
+	tax
+	tya
+	ldy xsize+1
+	beq !a
+	adc t8
+!a	adc bmbase+1
+	tay
+	txa
+	adc xorg
+	tax
+	tya
+	adc xorg+1
+	tay
+	txa
+	adc t6
+	sta t6
+	tya
+	adc t7
+	sta t7
+
+	ldx #$00
+
+!b	ldy #$00	;set blok adr
+	lda (t6),y
+	tay
+	and #%11111100
+	adc blbase	;C=0
+	sta t8
+	tya
+	and #%00000011
+	adc blbase+1
+	sta t9
+
+!c	lda ta	;get chr
+	ora tb
+	tay
+	lda (t8),y
+	lsr a		;unpack chr type from table nybbles
+	tay
+	lda (cdtab),y
+	bcs !d
+	lsr a
+	lsr a
+	lsr a
+	lsr a
+!d	and #$0f
+
+	cmp #c_cwall	;special castle chr?
+	bne !e
+	lda #c_air	;yes, convert it to air/land
+	bit cdflag	;depending on level
+	bpl !e
+	rol a		;land
+!e	sta t0,x
+
+	inx
+	dec tc
+	beq !g
+
+	ldy td
+	bne !f
+
+	lda ta
+	eor #$01
+	sta ta
+	bne !c
+	clc
+	inc t6
+	bne !b
+	inc t7
+	bcc !b
+
+!f	lda tb
+	eor #$02
+	sta tb
+	bne !c
+	clc
+	lda t6
+	adc xsize
+	sta t6
+	lda t7
+	adc xsize+1
+	sta t7
+	bcc !b
+
+!g	ldy #$07	;restore bank & exit
+	sty bnksel
+	sty $8000
+	ldy r7
+	sty $8001
+	rts
+
+
+	;
+	;Return chr type of 1 character FAST
+	;IN  :T0/T1=x-pos, T2/T3=y-pos
+	;OUT :A=type (if A=00, Z=1)
+	;USES:A, X, Y, T4..T7
+	;
+chkonechr	clc		;set y-pos
+	lda t2
+	adc #$08
+	sta t6
+	lda t3
+	adc #$00
+	lsr a		;calc landy & bloky
+	ror t6
+	lsr a
+	ror t6
+	lsr a
+	ror t6
+	lsr a
+	ror t6
+	rol a		;A=00
+	sta t7
+
+	lda t0	;set x-pos
+	sta t4
+	lda t1
+	lsr a		;calc landx & blokx
+	ror t4
+	lsr a
+	ror t4
+	lsr a
+	ror t4
+	lsr a
+	ror t4
+	sta t5
+	rol t7
+
+	ldy t6	;calc landy * xsize + landx + bmbase
+	lda xsize
+	jsr mul8
+	clc
+	adc bmbase
+	tax
+	tya
+	ldy xsize+1
+	beq !a
+	adc t6
+!a	adc bmbase+1
+	tay
+	txa
+	adc xorg
+	tax
+	tya
+	adc xorg+1
+	tay
+	txa
+	adc t4
+	sta t4
+	tya
+	adc t5
+	sta t5
+
+	ldx #$07	;bank in map & blocks
+	stx bnksel
+	stx $8000
+	lda mapbnk70
+	sta $8001
+
+	ldy #$00	;set blok adr
+	lda (t4),y
+	tay
+	and #%11111100
+	adc blbase	;C=0
+	sta t4
+	tya
+	and #%00000011
+	adc blbase+1
+	sta t5
+
+	ldy t7
+	lda (t4),y
+	lsr a
+	tay
+	lda (cdtab),y
+	stx bnksel	;restore bank
+	stx $8000
+	ldx r7
+	stx $8001
+	bcs !c	;unpack chr type from table nybbles
+	lsr a
+	lsr a
+	lsr a
+	lsr a
+	cmp #c_cwall	;special castle chr?
+	bne !b
+	lda #c_air	;yes, convert it to air/land
+	bit cdflag	;depending on level
+	bpl !b
+	rol a		;land
+!b	tax
+	rts
+!c	and #$0f
+	cmp #c_cwall	;special castle chr?
+	bne !d
+	lda #c_air	;yes, convert it to air/land
+	bit cdflag	;depending on level
+	bpl !d
+	rol a		;land
+!d	tax
+	rts
+
+
+	;
+	;Health text
+	;
+hetxt	dc "DIRE"	;0-31
+	dc "BAD"	;32-63
+	dc "POOR"	;64-95
+	dc "AVERAGE"	;96-127
+	dc "FAIR"	;128-159
+	dc "GOOD"	;160-191
+	dc "VERY GOOD"	;192-223
+	dc "EXCELLENT"	;224-255
+
+	;
+	;Rating text
+	;
+ratxt	dc "NOVICE"	;0-99
+	dc "APPRENTICE"	;100-299
+	dc "TALENTED"	;300-599
+	dc "ADEPT"	;600-999
+	dc "DEXTROUS"	;1000-1499
+	dc "COMPETENT"	;1500-2099
+	dc "PROFICIENT"	;2100-2799
+	dc "SKILLED"	;2800-3599
+	dc "EXPERT"	;3600-4499
+	dc "MASTER"	;4500-5499
+	dc "LEGEND"	;5500-65535
+
+	;
+	;Level text
+	;	
+letxt	dc "TOWN"		;1.?
+	dc "WILDERNESS"		;2.?
+	dc "LAKE"		;3.?
+	dc "FOREST"		;4.?
+	dc "CAVERNS"		;5.?
+	dc "DUNGEON"		;6.?
+	dc "CASTLE"		;7.?
+	dc "TOWER"		;8.?
+	dc "TOWER TOP"		;9.?
+	db "COMPLETED",ex+$80	;---
+
+	;
+	;Inventory object descriptions
+	;39=ptr,3a=tankard,3b=hands,3c=lips,3d=ear,3e=exit,3f=blank
+	;
+obtxt	dc "WATER FLASK"	;00
+	dc "CRUST OF BREAD"
+	dc "CHICKEN"
+	dc "HAM"
+	dc "VEGETABLES"
+	dc "POUCH OF COINS"
+	dc "FIRE BRAND"
+	dc "STAFF OF MALICE"
+	dc "STAFF OF KNELL"		;08
+	dc "STAFF OF MAYHEM"
+	dc "STAFF OF BLAYZE"
+	dc "STAFF OF POWER"
+	dc "RING OF HALE"
+	dc "RING OF ANA"
+	dc "RING OF VEN"
+	dc "AMULET OF SHEELD"
+	dc "AMULET OF MOR"		;10
+	dc "ULTIMATE POTION"
+	dc "KEY"
+	dc "HOLY WATER"
+	dc "MAGIC CHARM"
+	dc "VIAL OF EARTH"
+	dc "VIAL OF AIR"
+	dc "VIAL OF FIRE"
+	dc "VIAL OF WATER"		;18
+	dc "DRAGON EGG"
+	db "SUN",hyp,"GLASSE","S"+$80
+	db "WALKING",hyp,"STIC","K"+$80
+	dc "LETTER"
+	dc "RUNE STONE"
+	db hyp,hyp," QUIT GAME ",hyp,hyp+$80
+	db "SCROLL ",col+$80
+	db "POTION ",col+$80	;20
+	dc " "		;21 blank
+
+	;
+	;Spell descriptions
+	;
+sptxt	dc "RAZOR"	;00 destructive physical
+	dc "AXOR"
+	dc "BOULDER"
+	dc "SCARY"
+	dc "VEN"
+	dc "FIREBALL"
+	dc "LIGHTNING"
+	dc "RAZORSTORM"
+	dc "KISS MY AXE"	;08
+	dc "FIRESTORM"
+	dc "FIRE FOUNTAIN"
+	dc "DEATH RING"
+	dc "DISPELL"	;destructive etherial
+	dc "EXORCISE"
+	dc "REPELLENT"
+	dc "PSYCHIC"
+	dc "HELP"	;10 constructive
+	dc "PHYS SHIELD"
+	dc "VEN SHIELD"
+	dc "FIRE SHIELD"
+	dc "POWER SHIELD"
+	dc "HEAL"
+	dc "ANTI VEN"
+	dc "FLY"
+	dc "JUMP"	;18
+	dc "FLEET FOOT"
+	dc "SLOWMO"
+	dc " UNUSED"
+	dc "FEATHERLITE"
+	dc "IRON BOOTS"
+	dc "REVEAL"
+	dc " UNUSED"
+	dc "WAKEY WAKEY"	;20
+	dc "TRANSLATE"
+	dc "LIGHT"
+	dc "TWIN"
+	dc " UNUSED"
+	dc "MUZAK"	;special
+	db "WHO",app,"S WHO",qu+$80
+	dc "NINTENDO"
+	dc " "
+	db "UNKNOWN",fs,fs,fs+$80
+
+	;
+	;Potion descriptions
+	;
+potxt	dc "MANA"	;00
+	dc "HEAL"
+	dc "ANTI VEN"
+	dc "RESURRECT"
+
+	;
+	;Packed spell rune nybbles
+	;
+spells	hex 06efb0	;00
+	hex 068db0
+	hex 0689a0
+	hex 06cdf0
+	hex 06af00
+	hex 06d8e0
+	hex 06d9e0
+	hex 06efbc
+	hex 068c00	;08
+	hex 06ef8c
+	hex 06ef98
+	hex 06bde0
+	hex 05fc80
+	hex 05ec00
+	hex 05caf0
+	hex 058db0
+	hex 07bd00	;10
+	hex 07afe0
+	hex 04bfe0
+	hex 048fe0
+	hex 079fe0
+	hex 079000
+	hex 04afc0
+	hex 07aced
+	hex 04bf00	;18
+	hex 048dfc
+	hex 078dec
+	hex 04cea0
+	hex 04d9b0
+	hex 04d9a0
+	hex 07c000
+	hex 07abed
+	hex 04eda0	;20
+	hex 07eba0
+	hex 07f000
+	hex 048eb0
+	hex 07c800
+	hex 04dca8
+	hex 05a9bc
+	hex 04b89d
+	hex 100000	;28 empty      (tiles = 10,10,10,10,10,10)
+	hex 110000	;29 unknown... (tiles = 11,11,11,11,11,11)
+
+	;
+	;Object/potion/scroll costs
+	;
+obcostl	dl 5,0,0,0,0,20,25,30
+	dl 35,0,0,40,45,50,55,60
+	dl 65,70,75,80,85,90,95,99
+	dl 100,105,110,115,120,125,130,135
+	dl 140,150,155,160,165,170,175,180
+	dl 180,185,190,195,200,205,210,215
+	dl 220,225,230,235,240,245,250,255
+	dl 260,265,270,275,280,285,290,295
+	dl 300,305,310,315,320,325,330,335
+	dl 340,345,350,355
+
+obcosth	dh 5,0,0,0,0,20,25,30
+	dh 35,0,0,40,45,50,55,60
+	dh 65,70,75,80,85,90,95,99
+	dh 100,105,110,115,120,125,130,135
+	dh 140,150,155,160,165,170,175,180
+	dh 180,185,190,195,200,205,210,215
+	dh 220,225,230,235,240,245,250,255
+	dh 260,265,270,275,280,285,290,295
+	dh 300,305,310,315,320,325,330,335
+	dh 340,345,350,355
+
+
+	;
+	;Main game phase jump vectors
+	;
+gvl	dl g00,g01,g02,g03,g04,g05,g06	;main
+	dl g07		;shops etc.
+	dl g08		;inv
+	dl g09		;spell
+	dl g0a		;map
+gvh	dh g00,g01,g02,g03,g04,g05,g06
+	dh g07
+	dh g08
+	dh g09
+	dh g0a
+
+
+	;
+	;Bin>dec conversion table
+	;
+dlo	dl 1,10,100,1000,10000
+dhi	dh 1,10,100,1000,10000
+
+	;
+	;Spr index table : TAB[I]=I*4
+	;
+mul4
+ hex 0004080C1014181C2024282C3034383C4044484C5054585C6064686C7074787C
+ hex 8084888C9094989CA0A4A8ACB0B4B8BCC0C4C8CCD0D4D8DCE0E4E8ECF0F4F8FC
+
+
+	;
+	;2's complement addition table
+	;
+tab0	db -1,0,0
+
+
+	;
+	;Scn row addresses
+	;
+scnl	HEX 0020406080A0C0E00020406080A0C0E00020406080A0C0E00020406080A0
+scnh	HEX 000000000000000001010101010101010202020202020202030303030303
+
+	;
+	;Atr row addresses
+	;
+atrl	hex c0 c8 d0 d8 e0 e8 f0 f8
+
+
+
+	;
+	;Base of plr-position triggered event flags for each level
+	;
+ptbas
+ db pi10
+ db pi20,pi21
+ db pi30
+ db pi40,pi41,pi42,pi43
+ db pi50,pi51,pi52,pi53,pi54,pi55,pi56
+ db pi60,pi61,pi62,pi63,pi64,pi65,pi66,pi67,pi68,pi69
+ db pi70,pi71,pi72,pi73,pi74,pi75,pi76
+ db pi80,pi81,pi82,pi83,pi84,pi85,pi86
+ db pi90
+ db pia0,pia1,pia2,pia3,pia4,pia5,pia6,pia7,pia8,pia9,piaa,piab,piac,piad,piae
+gameind	equ *-ptbas	;indexes >= are non main-game
+
+	;
+	;Base of scn-position triggered event flags for each level
+	;
+stbas
+ db si10
+ db si20,si21
+ db si30
+ db si40,si41,si42,si43
+ db si50,si51,si52,si53,si54,si55,si56
+ db si60,si61,si62,si63,si64,si65,si66,si67,si68,si69
+ db si70,si71,si72,si73,si74,si75,si76
+ db si80,si81,si82,si83,si84,si85,si86
+ db si90
+ db sia0,sia1,sia2,sia3,sia4,sia5,sia6,sia7,sia8,sia9,siaa,siab,siac,siad,siae
+ db sib0
+
+	;
+	;Tune no. for each level (bit-7=1=no tune)
+	;
+tune
+ hex 0b
+ hex 03 ff
+ hex 00
+ hex 09 0e 0d 05
+ hex 01 01 01 0d 0d 05 0e
+ hex 0a 0d 05 0d 05 0d 0d 05 05 0e
+ hex 01 01 01 0e 01 01 01
+ hex 01 05 05 0e 05 05 10
+ hex 07
+ hex 0c 0c 0c 0c 0c 0c 0c 0c 0c 0c 0c 0c 0c 0c 0c
+
+	;
+	;X/Y object trigger coords
+	;Entry #0 is always the 8-bit plr Y/X start coord for H/V levels
+	;
+obxyst
+ hex a0 a0 a0 a0	;1.0
+ hex a0 a0 a0 a0	;2.0
+ hex 80 80 80 80	;2.1	;V
+ hex 90 50 64 84	;3.0
+ hex 98 64 54 9a	;4.0
+ hex a0 a0 a0 a0	;4.1
+ hex a0 a0 a0 a0	;4.2
+ hex 90 90 90 90	;4.3
+ hex 70 70 70 70	;5.0
+ hex 40 da 80 68	;5.1	;V
+ hex 90 48 58 70	;5.2
+ hex a0 a0 a0 a0	;5.3
+ hex a0 a0 a0 a0	;5.4
+ hex 90 90 90 90	;5.5
+ hex a0 a0 a0 a0	;5.6
+ hex a0 68 80 90	;6.0
+ hex a0 a0 a0 a0	;6.1
+ hex 90 90 90 90	;6.2
+ hex 90 90 90 90	;6.3
+ hex 90 90 90 90	;6.4
+ hex 90 90 90 90	;6.5
+ hex a0 80 60 a0	;6.6
+ hex 90 90 90 90	;6.7
+ hex 90 90 90 90	;6.8
+ hex a0 a0 a0 a0	;6.9
+ hex 50 a0 a0 a0	;7.0	;** note ground differences
+ hex 50 a0 68 a0	;7.1
+ hex a0 50 60 50	;7.2
+ hex a0 50 50 50	;7.3
+ hex a0 50 50 90	;7.4
+ hex 50 a0 88 a0	;7.5
+ hex a0 50 40 90	;7.6
+ hex 80 68 d0 a8	;8.0	;V
+ hex 90 90 90 90	;8.1
+ hex 90 90 90 90	;8.2
+ hex 90 90 90 90	;8.3
+ hex 90 90 90 90	;8.4
+ hex 90 90 90 90	;8.5
+ hex 90 90 90 90	;8.6
+ hex 68 6c 6c 6c	;9.0
+ hex a0 68 a0 a0	;a.0
+ hex a0 68 a0 a0	;a.1
+ hex a0 68 a0 a0	;a.2
+ hex a0 68 a0 a0	;a.3
+ hex a0 68 a0 a0	;a.4
+ hex a0 68 a0 a0	;a.5
+ hex a0 68 a0 a0	;a.6
+ hex a0 68 a0 a0	;a.7
+ hex a0 68 a0 a0	;a.8
+ hex a0 68 a0 a0	;a.9
+ hex a0 68 a0 a0	;a.a
+ hex a0 68 a0 a0	;a.b
+ hex a0 68 a0 a0	;a.c
+ hex a0 68 a0 a0	;a.d
+ hex a0 68 a0 a0	;a.e
+
+	;
+	;8-bit plr X/Y start coords for H/V levels
+	;bits 0/1 = initial facing dir 0/1/2/3 = L/R/U/D
+	;
+plrxyst
+ db $3c+1
+ db $14+1,$40+3
+ db $14+1
+ db $14+1,$80+2,$80+2,$80+2
+ db $14+1,$80+3,$14+1,$14+1,$14+1,$80+2,$80+2
+ db $14+1,$80+2,$80+2,$80+2,$80+2,$80+2,$80+2,$80+2,$80+2,$80+2
+ db $30+3,$50+3,$40+3,$60+3,$50+3,$60+3,$80+3
+ db $00+3,$80+2,$80+2,$80+2,$80+2,$80+2,$80+2
+ db $40+1
+
+	;
+	;Chr detection table to use for each level
+	;
+cdt
+ hex 00
+ hex 01 02
+ hex 03
+ hex 04 06 06 09
+ hex 05 05 05 06 06 09 06
+ hex 07 06 09 09 09 09 06 09 09 06
+ hex 08 08 08 08 08 08 08
+ hex 08 09 09 09 09 09 09
+ hex 0a
+ hex 06 06 06 06 06 06 06 06 06 06 06 06 06 06 06
+
+cdl	dl ct10,ct20,ct21,ct30,ct40,ct50,ct53,ct60,ct70,ct73,ct80
+cdh	dh ct10,ct20,ct21,ct30,ct40,ct50,ct53,ct60,ct70,ct73,ct80
+
+	;
+	;Setup routine vector indexes for each level
+	;
+svi
+ hex 00
+ hex 00 00
+ hex 00
+ hex 00 00 00 00
+ hex 00 00 00 00 00 00 00
+ hex 00 00 00 00 00 00 00 00 00 00
+ hex 00 00 00 00 00 00 00
+ hex 00 00 00 00 00 00 00
+ hex 00
+ hex 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+ hex 01 01 01 01 01 01 01 01
+ hex 02 03 04
+ hex 05
+
+svl	dl im,ishop,iinv,ispell,imap,isub
+svh	dh im,ishop,iinv,ispell,imap,isub
+
+
+	;
+	;Graphical level information
+	;
+ld00				;unused
+
+ld10
+ l0 b10b,b10c,s00,0000,00,00ec,0b	;10 town
+ l1 l10b,l10m,l10c,cp10
+
+ld20
+ l0 b20b,b20c,s01,0000,00,0100,0b	;20 wilderness
+ l1 l20b,l20m,l20c,cp20
+ l0 b21b,b21c,s02,0000,00,0010,1b	;21 well
+ l1 l21b,l21m,l21c,cp21
+
+ld30
+ l0 b30b,b30b,s03,0000,00,0140,0b	;30 lake
+ l1 l30b,l30m,l30c,cp30
+
+ld40
+ l0 b40b,b40c,s04,0000,00,0140,0b	;40 forest
+ l1 l40b,l40m,l40c,cp40
+ l0 b53b,b53c,s06,0130,00,0010,0b	;41 beggar room
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,0130,00,0010,0b	;42 troll room
+ l1 l53b,l53m,l53c,cp53
+ l0 b73b,b73c,s09,0000,00,0010,0b	;43 cursed treasure room (1)
+ l1 l73b,l73m,l73c,cp73
+
+ld50
+ l0 b50b,b50c,s05,0000,00,0020,0b	;50 caverns pt 1
+ l1 l50b,l50m,l50c,cp50l
+ l0 b50b,b51c,s05,0000,00,0010,38	;51 caverns pt 2
+ l1 l50b,l51m,l51c,cp50l
+ l0 b50b,b52c,s05,0000,00,00a0,0b	;52 caverns pt 3
+ l1 l50b,l52m,l52c,cp50l
+ l0 b53b,b53c,s06,0000,00,0010,0b	;53 dragon room
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,0010,00,0010,0b	;54 statue room
+ l1 l53b,l53m,l53c,cp53
+ l0 b73b,b73c,s09,0010,00,0010,0b	;55 subgame 1 treasure room (2)
+ l1 l73b,l73m,l73c,cp73
+ l0 b53b,b53c,s06,0130,00,0010,0b	;56 old woman room
+ l1 l53b,l53m,l53c,cp53
+
+ld60
+ l0 b60b,b60c,s07,0000,00,0110,0b	;60 dungeon
+ l1 l60b,l60m,l60c,cp60
+ l0 b53b,b53c,s06,0130,00,0010,0b	;61 ven worms room
+ l1 l53b,l53m,l53c,cp53
+ l0 b73b,b73c,s09,0020,00,0010,0b	;62 subgame 2 treasure room (3)
+ l1 l73b,l73m,l73c,cp73
+ l0 b73b,b73c,s09,0020,00,0010,0b	;63 suits of armour room
+ l1 l73b,l73m,l73c,cp73
+ l0 b73b,b73c,s09,0000,00,0010,0b	;64 subgame 3 treasure room (1)
+ l1 l73b,l73m,l73c,cp73
+ l0 b73b,b73c,s09,0010,00,0010,0b	;65 rat room
+ l1 l73b,l73m,l73c,cp73
+ l0 b53b,b53c,s06,0130,00,0010,0b	;65 winged serpents room
+ l1 l53b,l53m,l53c,cp53
+ l0 b73b,b73c,s09,0020,00,0010,0b	;67 subgame 4 treasure room (3)
+ l1 l73b,l73m,l73c,cp73
+ l0 b73b,b73c,s09,0000,00,0010,0b	;68 subgame 5 treasure room (1)
+ l1 l73b,l73m,l73c,cp73
+ l0 b53b,b53c,s06,0130,00,0010,0b	;69 wise man room
+ l1 l53b,l53m,l53c,cp53
+
+ld70
+ l0 b70b,b70c,s08,0000,00,0070,0b	;70 passage 1
+ l1 l70b,l70m,l70c,cp70
+ l0 b70b,b70c,s08,0070,00,003f,0b	;71 passage 2
+ l1 l70b,l70m,l70c,cp70
+ l0 b70b,b70c,s08,00b0,00,001c,0b	;72 passage 3
+ l1 l70b,l70m,l70c,cp70
+ l0 b70b,b70c,s08,00cc,00,0010,0b	;73 passage 4 sphinx
+ l1 l70b,l70m,l70c,cp70
+ l0 b71b,b71c,s08,0000,00,0030,0b	;74 passage 5
+ l1 l70b,l71m,l71c,cp70
+ l0 b71b,b71c,s08,0030,00,0050,0b	;75 passage 6
+ l1 l70b,l71m,l71c,cp70
+ l0 b71b,b71c,s08,0080,00,005c,0b	;76 passage 7
+ l1 l70b,l71m,l71c,cp70
+
+ld80
+ l0 b70b,b72c,s08,0000,00,0010,51	;80 tower
+ l1 l70b,l72m,l72c,cp70
+ l0 b73b,b73c,s09,0020,00,0010,0b	;81 subgame 6 treasure room (3)
+ l1 l73b,l73m,l73c,cp73
+ l0 b73b,b73c,s09,0000,00,0010,0b	;82 treasure room (1)
+ l1 l73b,l73m,l73c,cp73
+ l0 b73b,b73c,s09,0030,00,0010,0b	;83 spikes on roof
+ l1 l73b,l73m,l73c,cp73
+ l0 b73b,b73c,s09,0010,00,0010,0b	;84 treasure room (2)
+ l1 l73b,l73m,l73c,cp73
+ l0 b73b,b73c,s09,0040,00,0010,0b	;85 fountain room
+ l1 l73b,l73m,l73c,cp73
+ l0 b73b,b73c,s09,0050,00,0010,0b	;86 final spell room
+ l1 l73b,l73m,l73c,cp73
+
+ld90
+ l0 b80b,b80c,s0a,0010,00,0010,0b	;90 final battle
+ l1 l80b,l80m,l80c,cp80
+
+lda0
+ l0 b53b,b53c,s06,00b0,00,0010,0b	;a0 maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,0030,00,0010,0b	;a1 maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,0040,00,0010,0b	;a2 maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,0050,00,0010,0b	;a3 maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,0090,00,0010,0b	;a4 maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,0070,00,0010,0b	;a5 maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,0080,00,0010,0b	;a6 maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,0090,00,0010,0b	;a7 maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,00a0,00,0010,0b	;a8 maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,00b0,00,0010,0b	;a9 maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,00f0,00,0010,0b	;aa maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,00d0,00,0010,0b	;ab maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,00e0,00,0010,0b	;ac maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,00f0,00,0010,0b	;ad maze
+ l1 l53b,l53m,l53c,cp53
+ l0 b53b,b53c,s06,0100,00,0010,0b	;ae maze
+ l1 l53b,l53m,l53c,cp53
+
+ldb0				;unused
+
+ldc0				;unused
+
+ldd0
+ l0 bshb,bshc,s0f,0000,00,0010,0b	;d0 shop 1
+ l1 lshb,lshm,lshc,cpd0
+ l0 bshb,bshc,s0f,0010,00,0010,0b	;d1 pub 1
+ l1 lshb,lshm,lshc,cpd1
+ l0 bshb,bshc,s0f,0020,00,0010,0b	;d2 pub 2
+ l1 lshb,lshm,lshc,cpd2
+ l0 bshb,bshc,s0f,0030,00,0010,0b	;d3 church 1
+ l1 lshb,lshm,lshc,cpd3
+ l0 bshb,bshc,s0f,0040,00,0010,0b	;d4 shop 2
+ l1 lshb,lshm,lshc,cpd4
+ l0 bshb,bshc,s0f,0050,00,0010,0b	;d5 post office 1
+ l1 lshb,lshm,lshc,cpd5
+ l0 bshb,bshc,s0f,0060,00,0010,0b	;d6 shop 3
+ l1 lshb,lshm,lshc,cpd6
+ l0 b80b,b80c,s0a,0000,00,0010,0b	;d7 treasure chest
+ l1 l80b,l80m,l80c,cp80
+
+lde0
+ l0 binb,binc,s1f,0000,00,0010,0b	;e0 inventory
+ l1 linb,linm,linc,cpin
+ l0 binb,binc,s1f,0010,00,0010,0b	;e1 spell screen
+ l1 linb,linm,linc,cpin
+ l0 binb,binc,s0d,0020,00,0010,0b	;e2 map screen
+ l1 linb,linm,linc,cpma
+
+ldf0				;subgames
+
+
+	;
+	;Ptrs to main-level bases
+	;
+ldatl	dl ld00,ld10,ld20,ld30,ld40,ld50,ld60,ld70
+	dl ld80,ld90,lda0,ldb0,ldc0,ldd0,lde0,ldf0
+
+ldath	dh ld00,ld10,ld20,ld30,ld40,ld50,ld60,ld70
+	dh ld80,ld90,lda0,ldb0,ldc0,ldd0,lde0,ldf0
+
+ ;
+ ;Chr detection tables
+ ;
+ ;0 = thin air
+ ;1 = land/platform that can't be levitated through
+ ;2 = wall/ceiling
+ ;3 = castle floor   7.?=air, 8.0=land
+ ;4 = castle ceiling 7.?=air, 8.0=land
+ ;5 = marsh
+ ;6 = fountain
+ ;7 = water - dead
+ ;8 = fire pit - dead
+ ;9 = ceiling spikes - dead
+ ;A = caverns weak floor
+
+ct10	;00 level 10 - the town
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000110000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+
+ct20	;01 level 20 - the wilderness
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000001100000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000005000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000001000000
+
+ct21	;02 level 21 - the well
+	HEX 00000000000000000000000000000000
+	HEX 00000110101010101010101010101012
+	HEX 22222000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+
+ct30	;03 level 30 - the lake
+	HEX 00000000000000000000000000111111
+	HEX 11000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000020000007000000000
+	HEX 00007777700711000000200000020022
+
+ct40	;04 level 40 - the forest
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000011110000000000000000
+	HEX 00001111000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 10707070107000000000000000000000
+	HEX 00000000707000000000000000000000
+	HEX 00000000000000000000000000000000
+
+ct50	;05 level 50 - the caverns pt1
+	HEX 02222220000000000000000000000000
+	HEX 00000000001100110100000000222222
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000002220
+	HEX 22222222000000002222220022222000
+	HEX 22222222222222222222222222222222
+	HEX 22200000000000000000000000000000
+	HEX 000000000000000000000000000000a0	;fe=weak spc
+
+ct53	;06 level 53 - the caverns maze
+	HEX 02222222222220220222022222220220
+	HEX 02222000222202022222222222222222
+	HEX 22222222222222222222222222222000
+	HEX 00000000111111112211111000022222
+	HEX 20222220022220222222222222220222
+	HEX 22222220000000000000200000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+
+ct60	;07 level 60 - the dungeon
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000011111100000000000000000000
+	HEX 00000222222000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000222220000000000000000000000
+	HEX 00000000000000000000000000000000
+
+ct70	;08 level 70 - the castle
+	HEX 00000000000000000000000002222000
+	HEX 00000000000000003333000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 88880000000000000044440000000000
+	HEX 00000000000000000110000000000000
+	HEX 00000000000000000000000000000000
+
+ct73	;09 level 73 - the castle subrooms
+	HEX 02222222200000002000000022000000
+	HEX 22002200220000220000220000000022
+	HEX 00000000220000000022000000002200
+	HEX 00000000022000000000000220000000
+	HEX 00000000002200000022111200000000
+	HEX 00009999990000000000009999111106
+	HEX 66666000999900002002220000000000
+	HEX 00000000000000000000000000000000
+
+ct80	;0A level 80 - the final battle
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000001111111100000000
+	HEX 00000000000000000000000000000000
+	HEX 00000000000000000000000000000000
+
+
+	;
+	;Object characteristic data
+	;
+oc_phyy	equ 0		;physical,non-ethereal
+oc_phyn	equ 1		;non-physical,ethereal
+
+oc_sery	equ 0		;searchable
+oc_sern	equ 1		;not searchable
+
+oc_beydn	equ 0		;physical bullets explode,don't damage
+oc_beydy	equ 1		;physical bullets explode,damage
+oc_bendn	equ 2		;physical bullets don't explode,don't damage
+oc_unusd	equ 3		;unused
+
+oc_noone	equ 0		;interact : "no one there."
+oc_ignor	equ 1		;interact : "he/she ignores you."
+oc_inter	equ 2		;interact : "he/she ignores you." cnt=0:interact
+oc_attak	equ 3		;interact : "he/she ignores you." cnt=0:attack
+
+oc_c0	equ 0		;attack instantly/interact after 0th attempt
+oc_c1	equ 1		;attack/interact after 1st attempt to interact
+oc_c2	equ 2		;attack/interact after 2nd attempt to interact
+oc_c3	equ 3		;attack/interact after 3rd attempt to interact
+
+obchars	c oc_phyy,oc_sern,oc_beydy,oc_noone,oc_c0	;plr
+	c oc_phyy,oc_sery,oc_beydy,oc_inter,oc_c1	;wizard
+	c oc_phyy,oc_sern,oc_beydy,oc_noone,oc_c0	;spitting plant
+	c oc_phyy,oc_sern,oc_beydy,oc_ignor,oc_c0	;boatman
+	c oc_phyn,oc_sern,oc_bendn,oc_noone,oc_c0	;victory machine
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;mushroom
+	c oc_phyy,oc_sern,oc_bendn,oc_noone,oc_c0	;talking tree
+	c oc_phyy,oc_sern,oc_beydn,oc_noone,oc_c0	;talking snake
+
+	c oc_phyy,oc_sern,oc_beydy,oc_ignor,oc_c0	;beggar
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;troll
+	c oc_phyy,oc_sern,oc_beydy,oc_ignor,oc_c0	;old lady
+	c oc_phyy,oc_sern,oc_beydn,oc_noone,oc_c0	;turtle
+	c oc_phyn,oc_sern,oc_bendn,oc_attak,oc_c0	;spectre
+	c oc_phyy,oc_sern,oc_bendn,oc_noone,oc_c0	;marsh gas
+	c oc_phyy,oc_sern,oc_beydn,oc_noone,oc_c0	;vines
+	c oc_phyy,oc_sery,oc_beydy,oc_inter,oc_c2	;barbarian
+
+	c oc_phyy,oc_sery,oc_beydy,oc_inter,oc_c0	;adventurer
+	c oc_phyy,oc_sery,oc_beydy,oc_attak,oc_c1	;monk
+	c oc_phyn,oc_sern,oc_bendn,oc_noone,oc_c0	;beholder
+	c oc_phyy,oc_sern,oc_beydn,oc_noone,oc_c0	;stalagmite
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;winged serpent
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;werebat
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;venworm
+	c oc_phyy,oc_sern,oc_beydy,oc_noone,oc_c0	;little dragon
+
+	c oc_phyy,oc_sern,oc_beydy,oc_noone,oc_c0	;armour
+	c oc_phyy,oc_sern,oc_beydy,oc_inter,oc_c0	;wise man
+	c oc_phyn,oc_sern,oc_bendn,oc_attak,oc_c0	;skeleton
+	c oc_phyy,oc_sern,oc_bendn,oc_noone,oc_c0	;young woman
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;spider
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;stoneman
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;rat
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;fire elemental
+
+	c oc_phyn,oc_sern,oc_bendn,oc_attak,oc_c0	;demon
+	c oc_phyy,oc_sern,oc_bendn,oc_noone,oc_c0	;spikes on roof
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;abadon
+	c oc_phyy,oc_sery,oc_beydn,oc_noone,oc_c0	;treasure chest
+	c oc_phyy,oc_sern,oc_beydn,oc_noone,oc_c0	;slab
+	c oc_phyy,oc_sern,oc_bendn,oc_noone,oc_c0	;pendulum
+	c oc_phyy,oc_sern,oc_bendn,oc_noone,oc_c0	;fountain
+	c oc_phyy,oc_sern,oc_beydy,oc_attak,oc_c0	;statue
+
+	c oc_phyy,oc_sern,oc_beydn,oc_noone,oc_c0	;sphinx
+	c oc_phyy,oc_sern,oc_bendn,oc_noone,oc_c0	;final sp machine
+	c oc_phyy,oc_sery,oc_bendn,oc_noone,oc_c0	;statue of wizard
+	c oc_phyy,oc_sern,oc_bendn,oc_noone,oc_c0	;twin man
+

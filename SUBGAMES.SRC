@@ -1,0 +1,1135 @@
+	;
+	;Subgames
+	;
+
+	;subgame data format for each tile :-
+	;%PPAAADDD : (normal) P=palette, A=action, D=definition
+	;%IIIIIDDD : (teleports/levers) I=index, D=definition
+
+	;tile definition equates :-
+sd_blank	equ $0	;blank tile
+sd_tile1	equ $1	;tile type 1
+sd_tile2	equ $2	;tile type 2
+sd_tile3	equ $3	;tile type 3
+sd_tile4	equ $4	;tile type 4
+sd_levoff	equ $5	;lever (off)
+sd_levon	equ $6	;lever (on)
+sd_tele	equ $7	;teleport
+
+	;tile action equates :-
+sa_safe	equ $0	;safe/no action
+sa_restart	equ $1	;back to start
+sa_wall	equ $2	;impassable
+sa_movel	equ $3	;moves left
+sa_mover	equ $4	;moves right
+sa_moveu	equ $5	;moves up
+sa_moved	equ $6	;moves down
+sa_bonus	equ $7	;bonus gold
+
+
+isub	bnk 7,#1	;subgames overlap banks 0/1
+
+	lda curlev	;set subgame 0..5
+	and #$0f
+	sta subgame
+
+	lda #<snmi	;set subgame NMI vector
+	ldx #>snmi
+	jsr setnmi
+	lda #<cpsu	;set subgame chrs
+	ldx #>cpsu
+	ldy #s0b
+	jsr setchr
+	lda #<spsu	;set subgame sprs
+	ldx #>spsu
+	ldy #s022
+	jsr setspr
+
+	lda #$00
+	ldx #teleind-subphase
+!a	sta subphase-1,x
+	dex
+	bne !a
+	stx phase
+	stx pulind
+	stx puldel
+
+	jsr prsub	;draw initial scn
+	jsr backtos
+	jsr dossps
+
+	music 1	;init sound
+	mus 02	;init subgame tune
+	lda #$02	;set current tune
+	sta curtune
+
+	lda #$f8	;set subgame fine x,y
+	ldx #$01
+	ldy #$d4
+	sta finex
+	stx finex+1
+	sty finey
+	lda #$80	;enable NMI & exit
+	ora p0
+	sta p0
+	sta $2000
+sloop	bne sloop	;loop
+
+
+sg00	clc		;fade cols up
+	jmp setfade
+
+sg01	jmp dofade	;till done
+
+sg03	sec		;fade cols down
+	jmp setfade
+
+sg04	jmp dofade	;tile done
+
+sg05	ldy subgame
+	bpl !a
+	lda obstat+pi	;if failed, re-enter at orig level
+	and #$03	;set facing opposite dir
+	eor #$01
+	jsr setstnda
+	ldx oldlev
+	bne !b
+!a	ldx reroom,y	;original level
+!b	lda #$00	;re-enter game
+	jsr newlev
+	ldx #$ff
+	stx lastgame	;set no last game
+	txs
+	jmp reent
+
+reroom	hex 55 62 64 67 68 81	;completion re-entry treasure rooms
+
+
+
+sg02	ldx subphase	;execute current phase
+	lda suvl,x
+	sta t0
+	lda suvh,x
+	sta t1
+	jsr jmpt0
+
+	ldx subgame	;handle game 1 moving tile
+	dex
+	bne dossps
+	dec subdel1	;handle delay
+	bpl !d
+	lsr subdel1
+	ldx subind	;get moving tile x,y
+	jsr gettnybs
+	cmp subx	;plr on moving tile?
+	bne !b
+	cpx suby
+!b	php
+	ldy #sa_wall*8+sd_blank	;blank out tile
+	jsr setblokax
+	ldx subind	;move to next pos
+	dex
+	bpl !a
+	ldx #$05
+!a	stx subind
+	jsr gettnybs
+	plp
+	bne !c
+	sta subx	;yes, move plr too
+	stx suby
+	pha
+	jsr setsubspr	;set plr spr x,y
+	pla
+!c	ldy #sa_safe*8+sd_tile1	;fill in tile
+	jsr setblokax
+	sfx 11
+!d	dec puldel	;handle game 1 colour pulsing
+	bpl dossps
+	lda pulind	;1=safe
+	tax
+	asl a
+	asl a
+	tay
+	lda puldels,x
+	sta puldel
+	inx
+	txa
+	and #$07
+	sta pulind
+	ldx #$7c
+!e	lda pultab,y
+	sta curchrpal+4-$7c,x
+	iny
+	inx
+	bpl !e
+	jsr chktile	;on teleport?
+	cmp #sd_tele
+	beq dossps
+	jsr act	;no, act on tile now
+
+dossps	lda #$00
+	sta sprind
+	sta t0	;no x,y flip
+	lda subsprx	;display block over plr
+	ldx subspry
+	ldy subdef1
+	jsr subspr
+
+	ldy subpdir	;set direction flip status
+	lda subflip,y
+	ldx subpfrm	;last half of frames are flipped in
+	cpx #$04	;inverse movement axis
+	bcc !g
+	eor #$80
+	cpy #$02
+	bcc !g
+	eor #$c0
+!g	sta t0
+	cpy #$02
+	ldy subfrms,x
+	bcc !h
+	ldy subfrms+8,x
+
+!h	lda subphase	;display plr
+	eor #$03	;blank during part of teleport anim
+	bne !h0
+	ldx teleind
+	cpx #$05
+	bcc !h0
+	cpx #$12
+	bcs !h0
+	tay
+!h0	lda subsprx
+	ldx subspry
+	jsr subspr
+
+	lda #$00	;no x,y flip
+	sta t0
+	lda subsprx	;display blok under plr
+	ldx subspry
+	ldy subdef0
+	jmp subspr
+
+
+sg02a	jsr setsubspr
+	lda subx	;copy plr x,y
+	ldy suby
+	sta t4
+	sty t5
+	jsr chktileay	;set current tile info
+	sta t2
+	stx t3
+	jsr getdir	;check joystick
+	beq !c	;any?
+
+	sta subpdir	;yes, set direction 0..3
+	tay		;valid move?
+	clc
+	lda sxvecs,y
+	beq !0
+	adc subx
+	cmp #$0b
+	bcc !e
+	bcs !c
+!0	lda syvecs,y
+	adc suby
+	cmp #$0a
+	bcc !e0
+
+	bne !00	;handle exit
+	lda subx	;not complete
+	cmp #$05
+	bne !c
+	ror subgame
+!01	lda #$0f	;set exit subgames
+	sta subcnt
+	lda #$04
+	sta subphase
+	rts
+!00	cmp #$ff
+	bne !c
+	lda #$05
+	cmp subgame
+	bne !02
+	lda #$01
+!02	cmp subx
+	beq !01	;complete
+
+!c	dec subdel	;no, do delay
+	bpl !d
+	lda #$1d	;.5s
+	sta subdel
+	lda t2	;sat on a teleport?
+	cmp #sd_tele
+	bne !d
+	jmp act	;yes, teleport
+!d	rts		;exit
+
+!e	sta t4	;set new x,y
+	db $2c
+!e0	sta t5
+
+	lda t4	;get new tile info
+	ldy t5
+	jsr chktileay
+
+	cmp #sd_tile4+1	;blank/plain tile?
+	bcc !e1
+
+	cmp #sd_tele	;no, levers or teleports?
+	bne !g
+	cmp t2	;tele - cant go from a tele to a tele
+	bne !g
+	beq !d
+
+!e1	cpx #sa_wall	;impassable?
+	beq !d
+
+	ldy subgame	;no, game 0?
+	bne !g
+	tay		;yes, blank tile?
+	bne !g
+	dex		;yes, safe tile?
+	bpl !g
+	lda subx	;yes, fill it in before walking on it
+	eor suby	;generate 'random' tile
+	and #$03
+	tay
+	iny
+	lda t4
+	ldx t5
+	jsr setblokax
+	sfx 11
+
+!g	lda t4	;set new x,y
+	ldy t5
+	sta subx
+	sty suby
+	lda #$0f	;set movement distance
+	sta subcnt
+	inc subphase	;& movement phase & drop through
+
+
+sg02b	jsr movesubs
+	dec subcnt	;full tile moved?
+	bpl !a
+	dec subphase	;yes, back to waiting phase
+	lda #$1d	;reset delay
+	sta subdel
+	jmp act	;act on current tile
+!a	rts
+
+sg02c	jsr movesubs
+	dec subcnt	;all tiles moved?
+	bne !b
+	lda #$00
+	sta subdef0	;blank sprs under plr
+	sta subphase	;back to waiting phase
+	ldy #sa_safe*8+sd_tile1	;set chr block under plr to tile
+	jmp setblok
+!b	rts
+
+
+sg02d	dec teledel	;do teleport anim delay
+	bpl !0
+	lda #$03
+	sta teledel
+	ldx teleind	;update index
+	dex		;done?
+	bne !a
+	stx subphase	;yes, back to wait phase
+	stx subdef1	;clear tele spr
+!0	rts
+
+!a	stx teleind
+	lda teledefs-1,x
+	sta subdef1
+	cpx #$09
+	bne !0
+
+	sfx 0f	;re-appear fx
+	lda newsubxy	;set new x,y
+	jsr getnybs
+	sta subx
+	stx suby
+	jmp setsubspr	;& exit
+
+teledefs	hex 08 09 0a 0b 0c 0d 0e 0f 10 11 10 0f 0e 0d 0c 0b 0a 09 08
+
+
+sg02e	jsr movesubs
+	dec subcnt
+	bpl !a
+	inc phase	;subgame done
+!a	rts
+
+
+	;
+	;Move plr according to direction
+	;
+movesubs	ldy subpdir
+	clc
+	lda subsprx
+	adc sxvecs,y
+	sta subsprx
+	clc
+	lda subspry
+	adc syvecs,y
+	sta subspry
+
+	lda subphase	;do plr animation
+	lsr a		;but not when on moving tile
+	bne !a
+	dec subpdel
+	bpl !a
+	lda #$06
+	sta subpdel
+	inc subpfrm
+	lda subpfrm
+	and #$07
+	sta subpfrm
+!a	rts
+
+
+	;
+	;Act on current tile
+	;
+act	jsr chktile	;get current tile
+
+	cmp #sd_tele	;teleport?
+	bne chkleev
+	jsr combine	;get index
+	sty t0
+	ldx subgame
+	clc
+	jsr getbase
+	tya
+	adc t0
+	tay
+	lda teleports,y	;get destination map x,y as nybbles
+	sta newsubxy
+	lda #$00
+	sta teledel
+	lda #$14
+	sta teleind
+	lda #$03	;set teleport phase
+	sta subphase
+	sfx 0f,jmp
+
+chkleev	cmp #sd_levoff	;lever?
+	bcc chkmov
+
+	sta t2	;save lever state
+	jsr combine	;save lever no.
+	sty t3
+	lda t1	;get orig. map byte
+	eor #$03	;toggle on/off
+	tay
+	jsr setblok
+
+	ldy #sa_wall*8+sd_blank	;work out new blok type
+	lda t2	;for associated tiles
+	cmp #$06
+	beq !a
+	iny
+	lda #$01
+	cmp t3
+	beq !a
+	tay
+!a	sty t2
+
+	ldx t3	;get index to start of lever data
+	sec
+	jsr getbase
+
+!c	sty t3	;set levers
+	lda levers,y
+	cmp #$ff
+	beq !d
+	jsr getnybs
+	ldy t2
+	jsr setblokax
+	ldy t3
+	iny
+	bne !c
+!d	sfx 11,jmp
+
+chkmov	cpx #sa_bonus	;moving tile?
+	beq chkbonus
+	cpx #sa_movel
+	bcs !0
+	jmp chkrest
+
+!0	txa		;set movement dir
+	sbc #$03
+	sta subpdir
+
+	lda subx	;erase chr tile under plr
+	ldx suby
+	sta t4
+	stx t5
+	ldy #sa_wall*8+sd_blank
+	jsr setblok
+	lda #$02	;set phase to movement
+	sta subphase
+	lsr a		;set sprs under plr to tile
+	sta subdef0
+
+	lsr a		;calculate no. of pixels to move
+	ldx t4
+	ldy t5
+!a	sta subcnt	;set pixel count
+	stx t2	;set current tile x,y
+	sty t3
+	ldx subpdir
+	tya		;move y
+	clc
+	adc syvecs,x
+	cmp #$0a	;gone off scn?
+	bcs !b
+	sta t5
+	tay
+	lda t2	;move x
+	clc
+	adc sxvecs,x
+	cmp #$0b
+	bcs !b
+	sta t4
+	adc mul11,y	;convert to map index
+	tax
+	lda submap,x	;is this tile blank?
+	and #$07	;C=0=yes
+	cmp #sd_blank+1
+	php
+	lda subcnt
+	clc
+	adc #$10
+	ldx t4
+	ldy t5
+	plp
+	bcc !a
+!b	lda t2
+	ldx t3
+	sta subx
+	stx suby
+	sfx 10
+	jmp sg02c
+
+
+chkbonus	bit tmpflag	;bonus tile
+	bvs chkrest	;only collectable once during game
+	lda #bonus
+	ora tmpflag
+	sta tmpflag
+	lda #<-100	;give 100 gold
+	ldy #>-100
+	jsr chkwealth
+	jsr upwealth
+	lda subx	;remove bonus tile
+	ldx suby
+	ldy #sa_safe*8+sd_tile1
+	jsr setblok
+	sfx 23,jmp
+
+chkrest	cpx #sa_restart	;back to start?
+	bne ssa
+	cpx subgame	;game #2 special
+	bne back0
+	cpx pulind	;only safe if colours are up
+	beq ssa
+
+back0	sfx 12
+backtos	lda #$05	;yes, reset start plr x,y
+	ldx #$09
+	sta subx
+	stx suby
+	lda #$00	;waiting
+	sta subphase
+	lda #$02	;facing up
+	sta subpdir
+setsubspr	lda subx
+	asl a
+	asl a
+	asl a
+	asl a
+	adc #$28
+	sta subsprx
+	lda suby
+	asl a
+	asl a
+	asl a
+	asl a
+	adc #$2b
+	sta subspry
+ssa	rts
+
+
+	;
+	;Get base of data list
+	;IN : X=list no., C=0=teleport data, C=1=lever data
+	;
+getbase	ldy #$00
+	txa
+	beq !d
+!a	lda #$ff
+	iny
+	bcc !b
+	eor levers-1,y
+	bcs !c
+!b	eor teleports-1,y
+!c	bne !a
+	dex
+	bne !a
+!d	rts
+
+
+	;
+	;Set block attributes on screen & in map
+	;IN :A=x-pos,X=y-pos,Y=block value
+	;
+setblok	lda subx
+	ldx suby
+setblokax	pha
+	stx tf
+	clc
+	adc mul11,x
+	tax
+	tya
+	sta submap,x
+	and #$07
+	asl a
+	asl a
+	tay
+	pla
+	ldx tf
+	jmp pblokchr
+
+
+	;
+	;Combine colour+action into index
+	;IN :X=action, T0=colour
+	;OUT:Y=index 00..1F
+	;
+combine	asl t0
+	asl t0
+	asl t0
+	txa
+	ora t0
+	tay
+	rts
+
+
+	;
+	;Return information on tile at subx,suby
+	;OUT:A=definition, X=action, T0=colour, T1=orig. map byte
+	;
+chktile	ldy suby	;get current x,y
+	lda subx
+chktileay	clc		;enter here with non-plr A,Y
+	adc mul11,y	;index = x+y*11
+	tay
+	lda submap,y	;get tile
+	sta t1
+	tay
+	asl a		;extract colour
+	rol a
+	rol a
+	and #$03
+	sta t0
+	tya		;extract action
+	lsr a
+	lsr a
+	lsr a
+	and #$07
+	tax
+	tya		;extract definition
+	and #$07
+	rts
+
+
+	;
+	;Draw initial subgame screen
+	;
+prsub	lda #<sdat0	;uncrunch chrs
+	ldx #>sdat0
+	ldy subgame	;game #5 slightly different from others
+	cpy #$05
+	php
+	bne !a
+	lda #<sdat1
+	ldx #>sdat1
+!a	jsr unrunscn
+	lda #<sdat2
+	ldx #>sdat2
+	jsr unrun
+	lda #<scol0	;uncrunch cols
+	ldx #>scol0
+	plp
+	bne !b
+	lda #<scol1
+	ldx #>scol1
+!b	jsr unrun
+	lda #<scol2
+	ldx #>scol2
+	jsr unrun
+
+	lda #$23	;copy cols
+	sta $2006
+	ldx #$c0
+	stx $2006
+	lda $2007
+!b0	lda $2007
+	sta submap-$c0,x
+	inx
+	bne !b0
+
+	clc		;display cols
+	jsr !c
+	sec		;display chrs
+!c	ror tf
+	lda subgame	;set ptr to data for this subgame
+	ldy #$6e	;subgames are 11*10=$6E
+	jsr mul8
+	clc
+	adc #<sub1dat
+	sta ta
+	tya
+	adc #>sub1dat
+	sta tb
+
+	ldy #$00
+	sty t2	;x-pos
+	sty t3	;y-pos
+
+!d	sty t4
+
+	lda (ta),y	;test for lever/teleport
+	ldx t3
+
+	bit tf	;doing cols or chrs?
+	bpl !e
+
+	sta submap,y	;chrs, make a copy of map
+	and #$07	;display blok definition
+	asl a
+	asl a
+	tay
+	lda t2
+	jsr pblokchr
+	bcc !g	;C=0
+
+!e	ldy #$00	;levers/teleports always use palette 0
+	pha
+	and #$07
+	cmp #sd_levoff
+	pla
+	bcs !f
+	asl a		;else individual palette
+	rol a
+	rol a
+	and #$03
+	tay
+!f	lda t2
+	jsr pblokcol
+
+!g	jsr emptydma
+
+!h	inc t2	;update x,y
+	lda t2
+	eor #$0b
+	bne !i
+	sta t2
+	inc t3
+
+!i	ldy t4
+	iny
+	cpy #$6e
+	bne !d
+
+	rts
+
+
+	;
+	;Display block
+	;IN  : A=x-pos, X=y-pos, Y=block number
+	;USES:T0/T1
+	;
+pblokchr	asl a
+	adc subbl,x	;set scn address
+	sta t0
+	lda subbh,x
+	sta t1
+
+	swapstk 0,1
+
+	lda bloks+1,y
+	pha
+	lda bloks,y
+	pha
+	lda #$02
+	pha
+	lda t0
+	pha
+	clc
+	adc #$20
+	tax
+	lda t1
+	pha
+	adc #$00
+	sta t1
+	lda #tok3
+	pha
+
+	lda bloks+3,y
+	pha
+	lda bloks+2,y
+	pha
+	lda #$02
+	pha
+	txa
+	pha
+	lda t1
+	pha
+	lda #tok3
+	pha
+
+	swapstk 1,0
+
+	rts
+
+
+	;
+	;Display block colour
+	;IN  : A=x-pos, X=y-pos, Y=colour
+	;USES:T0/T1
+	;
+pblokcol	sty t0	;get attr offset
+	lsr a
+	php
+	clc
+	adc subcl,x
+	sta t1
+	tay
+
+	txa		;get index 0..3 into attr byte
+	plp
+	rol a
+	and #$03
+	tax
+
+	lda submap,y	;mask colour into attr byte
+	and submsk,x
+	ldy subshf,x
+	beq !b
+!a	asl t0
+	asl t0
+	dey
+	bne !a
+!b	ora t0
+	ldy t1
+	sta submap,y
+
+	swapstk 0,1
+
+	pha
+	lda #$01
+	pha
+	tya
+	ora #$c0
+	pha
+	lda #$23
+	pha
+	lda #tok3
+	pha
+
+	swapstk 1,0
+
+	rts
+
+
+	;
+	;Display subgame sprite block
+	;IN :A=x-pos, X=y-pos, Y=block, T0=flip status
+	;
+subspr	sta t1	;set spr x
+	stx t2	;y
+	lda subsprchr,y	;def
+	sta t3
+	lda subsprcol,y	;col+stat
+	ora t0
+	sta t4
+
+	clc
+	ldx #$7c
+
+!c	stx t5
+	lda sprind	;add this sprite to sprite list
+	asl a
+	asl a
+	inc sprind
+	tay
+
+	lda xtab-$7c,x	;do x
+	bit t0
+	bvc !d
+	eor #$08
+!d	adc t1
+	sta spr+3,y
+
+	lda ytab-$7c,x	;do y
+	bit t0
+	bpl !e
+	eor #$08
+!e	adc t2
+	sta spr,y
+
+	lda t3	;set def
+	inc t3
+	sta spr+1,y
+
+	lda t4	;set col
+	sta spr+2,y
+
+	ldx t5
+	inx
+	bpl !c
+	rts
+
+
+snmi	jsr emptydma	;dump main DMA data buffer to scn
+
+	lda #$3f	;set chr & spr palettes
+	sta $2006
+	ldy #$00
+	sty $2006
+	ldx #$60
+!a	lda curchrpal-$60,x
+	sta $2007
+	inx
+	bpl !a
+
+	sty $2003	;do spr DMA
+	lda #>spr
+	sta $4014
+
+	lda #$f8	;enable CHR+SPRs
+	sta $2001
+
+	ldx #$3f
+	stx $2006
+	sty $2006
+	sty $2006	;set end of undetermined zone
+	sty $2006
+
+	and p0	;A=$F8 - set scroll x,y, NMI enabled
+	ora finex+1
+	sta p0
+	sta $2000
+	lda finex
+	sta $2005
+	lda finey
+	sta $2005
+
+	jsr setmmc3
+
+	jsr joykey	;scan joypad
+
+	dec second	;update 1 second timer
+	bpl !b
+	lda #$3b
+	sta second
+
+!b	ldx phase	;get current game phase
+	lda sgvl,x	;set jump vector to phase
+	sta t0
+	lda sgvh,x
+	sta t1
+	jsr jmpt0	;execute routines
+
+	jsr rand	;update rnd nos.
+	jsr tickgame	;update gametime
+
+	music 00	;play current tune & fx
+
+	jmp niexit	;exit
+
+
+	;
+	;Subgame data
+	;
+
+sgvl	dl sg00,sg01,sg02,sg03,sg04,sg05	;subgame phase vectors
+sgvh	dh sg00,sg01,sg02,sg03,sg04,sg05
+
+
+SDAT0	HEX C0FF2626890000CECF000D0E0F26810526801026000026881400D0D10020
+	HEX 212226811823122425000000
+SDAT1	HEX C0FF0200019E9FA000CECFA1A20A0B0C00CECF000D0E0FA3A4CECF00A5A6
+	HEX A7130200001415A8A900D0D1AAABAC1E1F00D0D1002021ADAEAFD0D100B0
+	HEX B12425000000
+SDAT2	HEX 80FC010026272801120034353601000037382B0112004546470100004849
+	HEX 4A011200565758010000595A2B0112006465660100006768690112002F79
+	HEX 2A0100007A2A7B0112002F2A2A010000892A2B0112002F2A2A010000922A
+	HEX 2B0112002F2A9D010000292A2B011200322A33010000393A3B0112004243
+	HEX 440100004B4C4D0112005354550100005B2A5C0112002F2A630100006A2A
+	HEX 2B0112002F2A780100002A2A2B0112002F2A880100002A2A2B011200902A
+	HEX 910100002A932B0112009A9B9C0100002C2D2E0112002F30310100003C3D
+	HEX 3E0112003F40410100004E4F500112002F51520100005D5E5F0112006061
+	HEX 6201000001856B8A8B8C00D2D3008D8E8F01856F0100007C6D01837D9495
+	HEX 9600D4D50097989901857F017F00013C00
+SCOL0	HEX F8FF00FFFFFFF30000FF
+SCOL1	HEX F8FF00FFF3FFF3FFF3FFFF
+SCOL2	HEX C8FF01011FFF3F0100FF010C00
+
+
+bloks	HEX 00000000
+	HEX B2B3B4B5
+	HEX B6B7B8B9
+	HEX BABBBCBD
+	HEX BEBFC0C1
+	HEX C2C3C4C5
+	HEX C6C7C8C9
+	HEX CACBCCCD
+	HEX CECFD0D1
+	HEX D2D3D4D5
+
+
+subbl	hex 44 84 c4 04 44 84 c4 04 44 84	;scn tables
+subbh	hex 20 20 20 21 21 21 21 22 22 22
+
+subcl	hex 01 09 09 11 11 19 19 21 21 29	;atr table
+
+mul11	hex 00 0b 16 21 2c 37 42 4d 58 63	;*11 table
+
+submsk	hex cf 3f fc f3	;atr shift mask
+subshf	hex 02 03 00 01	;atr shift count
+
+subflip	hex 40 00 00 80		;flips for dirs l/r/u/d
+subfrms	hex 05 06 07 06 05 06 07 06	;l/r
+	hex 02 03 04 03 02 03 04 03	;u/d
+
+subsprchr	hex 44	;blank
+	hex 40	;tile
+	hex 00 04 08	;plr u/d
+	hex 34 38 3c	;plr l/r
+	hex 30 2c 28 24 20;teleport
+	hex 1c 18 14 10 0c
+subsprcol	hex 00
+	hex 02
+	hex 00 00 00
+	hex 00 00 00
+	hex 03 03 03 03 03
+	hex 03 03 03 03 03
+
+sxvecs	hex ff 01	;sliding square vectors
+syvecs	hex 00 00 ff 01
+
+teleports	hex 09 a0 ff		;game 1 teleport data
+	hex 45 70 ff		;game 2
+	hex 09 29 99 58 78 27 47 67	;game 3
+	hex 87 06 26 56 35 85 04 24
+	hex 54 84 03 23 43 63 83 22
+	hex 82 11 31 51 00 70 80 a0 ff
+
+levers	hex 78 98 a8 a7 a6 a5 74 84 ff	;game 4 lever data
+	hex 18 38 68 87 96 14 64 40 ff
+	hex 77 76 75 ff
+	hex 20 30 ff
+	hex 82 31 ff
+	hex 44 43 32 42 ff
+	hex 37 54 12 91 a1 a0 ff
+	hex 61 71 81 ff
+	hex 26 36 46 56 02 01 00 10 ff
+	hex 07 17 06 16 15 ff
+	hex 08 55 93 ff
+	hex 83 ff
+	hex 62 ff
+	hex 23 ff
+	hex 51 ff
+
+travdat	hex 65 53 33 25 37 57	;travelling tile data
+
+subtab	hex 0f 13 23 33		;spr cols for pulsing
+	hex 0f 03 13 23
+	hex 0f 0f 03 13
+	hex 0f 0f 0f 03
+	hex 0f 0f 0f 0f
+	hex 0f 0f 0f 03
+	hex 0f 0f 03 13
+	hex 0f 03 13 23
+
+puldels	db 35,6,6,6,90,6,6,6	;delays
+
+
+suvl	dl sg02a,sg02b,sg02c,sg02d,sg02e
+suvh	dh sg02a,sg02b,sg02c,sg02d,sg02e
+
+
+
+SUB1DAT	HEX 0000000800000808000807
+	HEX 0008000800080008000800
+	HEX 0008000800080008000000
+	HEX 0008000800000008000800
+	HEX 0008000808000800000800
+	HEX 0008000000000800080000
+	HEX 0008080808080800080008
+	HEX 0000080000000000080000
+	HEX 0800080008080808080800
+	HEX 0F00000008030000000000
+
+SUB2DAT	HEX 034B024A4C014C074C0349
+	HEX 4A4C4C4A4C4C494C4A4B4C
+	HEX 494B4A4A4B4B024A4C4C4B
+	HEX 4C4C49104B104C494B014C
+	HEX 03494B49494C4A494A4A4A
+	HEX 4C4C104A0F4A104949034A
+	HEX 024B4A4B49494B494A4C4A
+	HEX 4C4A4A104C104B4B4A014B
+	HEX 034C4C494B4C4A4B4B4B4A
+	HEX 4A4A02494904494A024A49
+
+SUB3DAT	HEX 77020A1010030BDFE70107
+	HEX 10BF10CF04971003100B10
+	HEX 1010D7100A101010EF0910
+	HEX 271057107F10A7109F0C10
+	HEX F7102F100A1F040BAF0C10
+	HEX 1009104F01090902B70910
+	HEX 0F013F100B87100B030C10
+	HEX 1009471067106F108F1010
+	HEX 10391010105F10C7100B10
+	HEX 170237101002101009FF3B
+
+SUB4DAT	HEX 1010101010041010101010
+	HEX 1010101010101010101010
+	HEX 1010101010101010101010
+	HEX 105D101010106D10101065
+	HEX 1010751010101010105510
+	HEX 1010101010101010101010
+	HEX 1010101010101010101010
+	HEX 1010101010101010101010
+	HEX 1010101010101010101010
+	HEX 4D453D352D03251D150D05
+
+SUB5DAT	HEX 1010091010041010101019
+	HEX 0A10100A10101010101010
+	HEX 102110100A0110100A1029
+	HEX 1010103110100110102110
+	HEX 1010101010291010291010
+	HEX 1010101021102110100B10
+	HEX 1010103110101010311010
+	HEX 2910291010101010101010
+	HEX 1019101019012110100C10
+	HEX 1010010A10021010041010
+
+SUB6DAT	HEX 04020B0209090A040A090A
+	HEX 020A0102010C0304040A03
+	HEX 0103020C0104030A010201
+	HEX 0C09090A0B0C0B0A0C0C03
+	HEX 030C020A0203090A030403
+	HEX 020B010B0A03040A020A01
+	HEX 030903020402010B03030C
+	HEX 0104010C01090402020109
+	HEX 0909030B0B090A0B0C0A04
+	HEX 0B09030301020202040403
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

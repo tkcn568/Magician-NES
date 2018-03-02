@@ -1,0 +1,1041 @@
+
+
+	;
+	;Little dragon
+	;
+fb17	aseq 00c0
+	rvar s0
+	time 06	;walking
+	hex 00 01 02 03 04 05 06 07
+	goto -8
+	rvar s1
+	time 05	;(O) mouth open
+	dual 08
+	hex 09 0a 0b 0c 0d 0d 0c 0b 0a ;fire
+	dual 00
+	hex 08 08 08 08
+	goto -19
+
+	avar m_01
+	lda #s1
+	sta obaind,x
+	jsr deadob1	;exit if dragon done
+	inc obmod,x
+
+	avar m_02
+	jmp anim
+
+mv17	dw fb17
+	dw m_01,m_02
+
+
+	;
+	;Armour
+	;
+fb18	aseq 00db
+	rvar s0	;standing
+	hex 00
+	done
+	rvar s1	;walking
+	time 04
+	hex 00 01 02 03 04 05 06 07
+	goto -8
+
+	avar m_01
+	jmp anim
+
+mv18	dw fb18
+	dw m_01
+
+
+	;
+	;Wise old man
+	;
+fb19	aseq 00db
+	rvar s0
+	hex 08
+	done
+
+	avar m_01
+	jsr deadob1	;exit if wise man done/dead
+
+	ldy #$04
+	jsr addymsg
+	inc obmod,x
+	avar m_02
+	jmp anim
+
+mv19	dw fb19
+	dw m_01,m_02
+
+
+	;
+	;Skeleton
+	;
+fb1a	aseq 004a
+	rvar s0	;walking/fighting
+	time 08
+	hex 9e 9f a0 a1 a2 a3
+	goto -6
+
+	avar m_01
+	jmp anim
+
+mv1a	dw fb1a
+	dw m_01
+
+
+	;
+	;Young woman
+	;
+	avar m_01
+	lda #$5a
+	sta obafr1,x
+	rts
+
+mv1b	dw fb00
+	dw m_01
+
+
+	;
+	;Spider
+	;
+fb1c	aseq 00f2
+	rvar s0
+	time 0a
+	hex 00 01 02 03
+	goto -4
+
+	avar m_01
+	jmp anim
+
+mv1c	dw fb1c
+	dw m_01
+
+
+	;
+	;Stoneman
+	;
+fb1d	aseq 0100
+	rvar s0
+	time 09
+	hex 00 01 02 03 04 05 06 07
+	goto -8
+
+	avar m_01
+	jmp anim
+
+mv1d	dw fb1d
+	dw m_01
+
+
+	;
+	;Rat
+	;
+fb1e	aseq 0108
+	rvar s0
+	time 04
+	hex 00 01 02 03 04 05
+	goto -6
+
+	avar m_01
+	jmp anim
+
+mv1e	dw fb1e
+	dw m_01
+
+
+	;
+	;Fire elemental
+	;
+fb1f	aseq 0040
+	rvar s0	;burning
+	time 08
+	hex ce cf ae af
+	done
+	rvar s1	;throwing bolt
+	hex b0 00
+	fire 14,3
+	hex 0a
+	done
+
+	avar m_01
+	lda #$6c
+	sta obyl,x
+	jsr anim
+	bcs !b
+	lda rn
+	bpl !c
+	inc obmod,x
+	lda #s1
+!a	sta obaind,x
+	lda #$00
+	sta obadel,x
+!b	lda #$06
+	sta sprpal
+	rts
+
+	avar m_02
+	jsr anim
+	bcs !b
+	dec obmod,x
+!c	lda #s0
+	bpl !a
+
+mv1f	dw fb1f
+	dw m_01,m_02
+
+
+	;
+	;Demon
+	;
+fb20	aseq 0000
+	rvar s0	;flying
+	hex 4e
+	done
+	rvar s1	;throwing bolt
+	time 04
+	hex 69 f1 33 34 35
+	fire 05,03
+	hex 36 4b 4e
+	done
+
+	avar m_01
+	jsr anim
+	bcs !b
+	lda rn
+	bpl !c
+	inc obmod,x
+	lda #s1
+!a	sta obaind,x
+	lda #$00
+	sta obadel,x
+!b	rts
+
+	avar m_02
+	jsr anim
+	bcs !b
+	dec obmod,x
+!c	lda #s0
+	bpl !a
+
+mv20	dw fb20
+	dw m_01,m_02
+
+
+	;
+	;Spikes on roof
+	;
+	avar m_01
+	jsr spib	;iron boots already on?
+	beq !a
+!0	lda #$02	;no, msg
+	ldy #$01
+	bne !a0
+!a	lda #$03	;yes, msg
+	ldy #$02
+!a0	sta obmod,x
+	jmp addymsg
+
+	avar m_02
+	lda #%10000000	;move plr up till iron boots cast
+	jsr spitst
+	jsr spib
+	beq !a
+	lda second
+	and #$03
+	bne !b
+	dec obyl+pi
+!b	rts
+
+	avar m_03
+	lda #%00000000	;plr ok till iron boots run out
+	jsr spitst
+	jsr spib
+	bne !0
+	avar m_04
+	rts
+
+spib	lda obmaflg+pi	;test for iron boots
+	lsr a
+	lsr a
+	and #$03
+	cmp #$02
+	rts
+
+spitst	sta ctrl	;kill plr if in spikes
+	lda #$38
+	cmp obyl+pi
+	bcc m_04
+	lda #$04
+	sta obmod,x
+	ror plrflg	;fake falling mode
+	pla		;don't come back
+	pla
+	lda #d_physical
+	jmp killplr
+
+mv21	dw fb00
+	dw m_01,m_02,m_03,m_04
+
+
+	;
+	;Abadon
+	;
+	avar m_01
+	lda #$00
+	sta obyl,x
+	tay
+	jsr addymsg
+	lda #$80	;no movement
+	sta ctrl
+	lda abflg
+	beq !a
+	inc obmod,x
+!a	rts
+
+	avar m_02
+	lda second	;handling abadon or ultimate?
+	lsr a
+	bcs !f
+
+	lda panph	;don't move abadon if panel scrolling
+	lsr a
+	bne !a
+
+	lda abmod	;handle abadon modes
+	lsr a
+	bne !d
+
+	ldx #$02
+	bcs !b
+	lda rn	;standing
+	and #$1f
+	bne !c	;cast randomly
+	lda #$08
+	sta abdel
+	inc abmod
+	bpl !c
+
+!b	dex		;casting
+	dec abdel
+	bpl !c
+	dec abmod
+!c	lda #$13	;display abadon frame
+	ldy #$13
+	jmp prab
+
+!d	bcs !e
+	rts		;hit
+
+!e	ldx #$00	;dead
+	bpl !c
+
+
+!f	lda ulmod	;handle ultimate spell modes
+	bne !h
+
+	lda fireb	;not printing lightning
+	beq !g
+	lda invhand
+	eor #$11
+	bne !g
+	inc ulmod	;ultimate spell cast
+	sta uldel	;set timing
+	tax
+	sfx 21
+	lda #$f7	;set hi casting frame
+	sta obafr1+pi
+	lda #%11100000	;stop anim, A & B
+	sta ctrl
+	ldy #$02
+	sty abmod	;abadon hit
+	iny		;init lightning frame
+	sty lifrm
+	bpl !c
+!g	ldx #$07
+	jmp prlight
+
+
+!h	dec uldel	;handle ultimate timing
+	bne !h0
+	lda #$00
+	sta abmod
+	sta ulmod
+	lda #$80	;allow casting
+	sta ctrl
+	jsr setstnd
+	lda firea
+	bne won
+
+!h0	lda second
+	and #$02
+	bne !h1
+
+	lda lifrm	;display explosion
+	sec
+	sbc #$03
+	lsr a
+	clc
+	adc #$08
+	tax
+	lda #$16
+	ldy #$13
+	jmp prab
+
+!h1	ldx lifrm	;display lightning
+	inx
+	cpx #$07
+	bne !i
+	ldx #$03
+!i	stx lifrm
+	jmp prlight
+
+
+	;
+	;Abadon defeated
+	;
+won	inc mapind	;level = completed
+	jsr movepw	;set completed pw
+	inc vicflg	;flag victory
+	lda #$00	;back to town
+	ldx #$10
+	jmp newlev
+
+	;
+	;Display lightning beam
+	;IN:X=frame no.
+	;
+prlight	lda #$0a
+	stx t4
+!a	sta t5
+	ldy #$12
+	jsr prab
+	ldx t4
+	lda t5
+	adc #$03	;C=1
+	cmp #$16
+	bne !a
+	rts
+
+	;
+	;Display tower-top chr frames
+	;IN  :A/Y=bottom-left scn x/y, X=frame no.
+	;OUT :C=1
+	;USES:A, X, Y, T0..T3
+	;
+prab	jsr setxy
+	lda abxy,x
+	lsr a
+	lsr a
+	lsr a
+	lsr a
+	sta t2
+	lda abxy,x
+	and #$0f
+	sta t3
+	ldy abi,x
+	swapstk 0,1
+	sec
+!a	ldx t2
+!b	lda abfr0,y
+	pha
+	dey
+	dex
+	bne !b
+	lda t2
+	pha
+	lda t0
+	pha
+	sbc #$20
+	sta t0
+	lda t1
+	pha
+	sbc #$00
+	sta t1
+	lda #tok3
+	pha
+	dec t3
+	bne !a
+	swapstk 1,0
+	rts
+
+abi	db abfr1-abfr0-1,abfr2-abfr0-1,ul0-abfr0-1
+	db ul1-abfr0-1,ul2-abfr0-1,ul3-abfr0-1,ul4-abfr0-1,ux0-abfr0-1
+	db ux1-abfr0-1,ux2-abfr0-1
+
+abxy	hex 96 96 96 42 42 42 42 42 44 44
+
+abfr0	hex ffffffff474849ffff
+	hex ffffffff4a4b4cffff
+	hex ffff4d4e4f505152ff
+	hex ff535455565758595a
+	hex ff5b5c5d5e5f606162
+	hex ffffff63646566ffff
+
+abfr1	hex ffffffff6f70ffffff
+	hex ffffffff7172ffffff
+	hex ff737475767778ffff
+	hex 797a7b7c7d7e7fffff
+	hex ffd8d9dadbdcddffff
+	hex ffffff63646566ffff
+
+abfr2	hex ffffffff6f70ffffff
+	hex ffffffff7172ffffff
+	hex ffffffdedfe0e1ffff
+	hex ffffffe2e3e4e5ffff
+	hex ffffffe6e7e8e9ffff
+	hex ffffffeaebecedffff
+
+ul0	hex acadaeaf
+	hex f2f3f4f5
+
+ul1	hex f6f7f8f9
+	hex fafbfcfd
+
+ul2	hex aff6f7f8
+	hex f5fafbfc
+
+ul3	hex aeaff6f7
+	hex f4f5fafb
+
+ul4	hex ffffffff
+	hex ffffffff
+
+ux0	hex 96979899
+	hex 9a95959b
+	hex 9c95959d
+	hex 9e9fa0a1
+
+ux1	hex a2a3a4a5
+	hex 9a9595a6
+	hex 9c9595a7
+	hex a8a9aaab
+ux2
+
+mv22	dw fb00
+	dw m_01,m_02
+
+
+	;
+	;Treasure chest
+	;
+	avar m_01
+	sta t10	;save ob flag
+
+	and #$08	;chest done?
+	bne !a
+
+	lda #$54	;no, set spr def
+	sta obafr1,x
+
+	lda t10	;chest moving?
+	and #$02
+	beq !c
+
+	ldy obang,x	;yes, already going? ** only 1 at once
+	bmi !1
+	bne !0
+	tya
+	sta obxrad,x	;no,set x,y rad
+	lda #$40
+	sta obyrad,x
+	lda obxl,x	;set x-pos
+	sta obxorgl,x
+	lda obxh,x
+	sta obxorgh,x
+	jsr chesty	;set chest y-pos
+	sta obyorgl,x
+	lda obyh,x
+	sta obyorgh,x
+!0	iny		;step angle
+	iny
+	tya
+	sta obang,x
+	jsr genobpos	;set chest pos
+	sta obyh,x
+	lda t2
+	sta obyl,x
+	lda t1
+	sta obxh,x
+	lda t0
+	sta obxl,x
+	rts
+!1	lda t10	;flag chest stopped moving
+	and #%11111101
+	jmp set4oi
+
+!c	jsr tstobplr	;plr standing over chest?
+	bcc !b	;no
+	lda t10	;yes, if locked & key used, open chest
+	and #$01
+	eor curob
+	eor #$12
+	bne !b
+	lda t10	;set chest to open
+	ora #$01
+	jsr set4oi
+	ldx #$1c	;msg & exit
+	jmp miscmsg
+
+!a	sec		;yes, delete it
+	ror obtyp,x
+!b	rts
+
+chesty	lda curlevind	;set chest y-pos (h-levels only)
+	asl a
+	asl a
+	tax
+	lda obxyst,x
+	sec
+	sbc #$08
+	ldx obind
+	sta obyl,x
+	rts
+
+mv23	dw fb00
+	dw m_01
+
+
+	;
+	;Slab
+	;
+fb24	aseq 003f
+	rvar s0
+	hex 00
+	done
+
+	avar m_01
+	lda #$ff-twin	;clr twin flag
+	and tmpflag
+	sta tmpflag
+	inc obmod,x	;move to next mode
+	jmp anim
+
+	avar m_02
+	lda cursp	;handle twin spell
+	cmp #$23
+	bne !a
+	bit tmpflag	;only one
+	bvs !a
+	lda #twin
+	ora tmpflag
+	sta tmpflag
+	lda #<$1094
+	ldx #>$1094
+	sta t4
+	stx t5
+	lda #<$008c
+	ldx #>$008c
+	sta t6
+	stx t7
+	lda #$ff	;event no.
+	ldx #$00	;characteristic
+	sta t0
+	stx t1
+	lda #$2b
+	jsr actob
+
+!a	ldx obind
+	ldy #-2
+	bit tmpflag	;raise slab if twin ok
+	bvs !c
+	lda plrflg	;lower if flying
+	bne !b
+	lda obxl+pi	;raise slab if plr on it
+	cmp #$84
+	bcc !b
+	cmp #$a4
+	bcc !c
+!b	ldy #2	;lower slab
+!c	tya
+	clc
+	adc obyl,x
+	cmp #$5c
+	beq !d
+	cmp #$8c
+	bcs !d
+	sta obyl,x
+!d	tya
+
+	bmi !g	;slab move up or down?
+
+	ldy lr	;down, plr moving right?
+	dey
+	bne !e
+	php
+	lda obxl+pi
+	cmp #$e4
+	bcc !d0
+	lda plrflg	;jump > fall
+	asl a
+	bmi !d1
+	cmp #$02
+	beq !d0
+	jsr setstnd
+	beq !d0
+!d1	jsr setfall
+!d0	plp
+!e	bcs !f	;did it move?
+	lda obyl,x	;yes, did it hit floor?
+	cmp #$88
+	bne !f
+	sfx 08,jmp	;yes, sfx
+!f	rts	
+
+!g	bcs !f	;up, did it move?
+	lda obyl,x	;yes, lifting off floor?
+	cmp #$84
+	bne !f
+	sfx 2d,jmp	;yes, sfx
+
+mv24	dw fb24
+	dw m_01,m_02
+
+
+	;
+	;Pendulum
+	;
+fb25	avar m_01	;init pendulum
+	sec
+	ror obtyp,x
+	ldy #mbi
+!a	lda #$11
+	sta bulsp,y
+	lda #$00
+	sta bulpha,y
+	sta bulyorgh,y
+	lda #<$0018
+	sta bulyorgl,y
+	lda obxl,x
+	sta bulxorgl,y
+	lda obxh,x
+	sta bulxorgh,y
+	dey
+	bpl !a
+	rts
+
+mv25	dw fb00
+	dw m_01
+
+
+	;
+	;Fountain
+	;
+fb26	avar m_01	;init fountain
+	lda #2
+	sta obmod,x
+	sta obyl,x	;off scn
+	ldx #maxb-1
+!a	lda #$10
+	sta bulsp,x
+	lda #$01
+	sta bulpha,x
+	dex
+	bpl !a
+	ldx #$03
+	jmp addcmsg
+!b	rts
+
+	avar m_02
+	lda obxl+pi	;wait till plr in fountain
+	cmp #$a8
+	bcc !b
+	cmp #$b9
+	bcs !b
+	bit tmpflag	;already been in it?
+	bmi !b
+	asl tmpflag	;no, set flag
+	sec
+	ror tmpflag
+	sfx 0c
+	ldx #$13	;send msg
+	jmp miscmsg
+
+mv26	dw fb00
+	dw m_01,m_02
+
+
+	;
+	;Statue
+	;
+	avar m_01
+	jsr deadob1
+	lda #$a7
+	sta obxl,x
+	lda #$9d
+	sta obyl,x
+	lda #$00
+	sta obxh,x
+	sta obyh,x
+	lda #$fd
+	sta obafr1,x
+	ldy #$06
+	inc obmod,x
+	jmp addymsg
+
+	avar m_02
+	lda obxl+pi
+	cmp #$30
+	bcc !b
+	ldy #$07
+!a	inc obmod,x
+	jsr addymsg
+	jmp steye
+!b	rts
+
+	avar m_03
+	lda rn
+	and #$1f
+	bne !c
+	lda #$05
+	ldx #$04
+	jsr nmefire
+!c	jmp steye
+
+steye	lda #$a3
+	sta t0
+	lda #$57
+	ldx #$74
+	ldy #$02
+	jmp addaxy
+
+mv27	dw fb00
+	dw m_01,m_02,m_03
+
+
+	;
+	;Sphinx
+	;
+	avar m_01
+	lda #$01
+	sta palflg
+	jsr tstpan	;wait till panel empty
+	bcc !a
+	jsr getresp
+	ldx obind
+	bcc !a
+	tay
+	bne !b
+	sty ctrl	;restore plr to normal
+	sty palflg
+	ror obtyp,x	;right, delete object
+	lda #$02
+	jsr set4oi
+	lda #$04	;msg
+	ldx #$15
+	jmp addmsg
+
+!b	jsr modenexts	;wrong
+	lda #d_physical	;kill plr
+	jsr killplr
+	lda #$04
+	ldx #$16
+	jsr addmsg
+	ldx #$05
+	jmp addcmsg
+
+	avar m_02
+!a	lda #$c0	;add eye spr
+	sta t0
+	lda #$6c
+	ldx #$dd
+	ldy #$02
+	jmp addaxy
+
+mv28	dw fb00
+	dw m_01,m_02
+
+
+	;
+	;Final spell machine
+	;
+	avar m_01
+	lda #$fc
+	sta obafr1,x
+	inc obmod,x
+	ldy #$04
+	jsr addymsg
+
+	avar m_02
+	lda curob	;wait for element
+	sec
+	sbc #$15
+	cmp #$04
+	bcs !b
+	tax		;flag plr given it
+	lda msk0,x
+	ora finalflg
+	tax		;give all four?
+	and #$0f
+	cmp #$0f
+	ldy #$06
+	bcc !a
+	iny
+	sfx 28
+	txa
+	ora #$10	;yes
+	bne !a0
+!a	sfx 24	;no
+	txa
+!a0	sta finalflg
+	jsr addymsg
+	lda curob	;delete from inv
+	jsr delinv
+
+!b	lda plrflg	;plr trying to collect ultimate potion?
+	bne !z
+	lda obxl+pi
+	cmp #$73
+	bcc !z
+	cmp #$8c
+	bcs !z
+	lda obstat+pi
+	and #$03
+	cmp #$02
+	bne !z
+	lda ud
+	bpl !z
+	lda finalflg	;is it there?
+	bmi !z
+	ldy #$05
+	bit msk0+4
+	beq !y
+	ora #$80	;yes, flag it collected
+	sta finalflg
+	lda #$11	;add to inv
+	jsr addinv
+	sfx 18
+	ldy #$08
+!y	jsr addymsg
+!z
+	;
+	;Display final icons
+	;
+dics	ldx #$04
+	bit finalflg	;don't display ultimate if collected
+	bmi !c
+!a	sec
+	ror t0
+	stx t10
+	lda msk0,x
+	and finalflg
+	cmp #$01
+	lda finoff,x
+	bcc !b
+	lda finon,x
+!b	pha
+	lda finx,x
+	ldy finy,x
+	tax
+	pla
+	jsr sprblok
+	ldx t10
+!c	dex
+	bpl !a
+	lda #$0f	;set palette
+	sta sprpal
+	lda #$02
+	sta nmebnk
+	rts
+
+finon	hex 24 25 26 27 29
+finoff	hex 2a 2a 2a 2a 28
+finx	hex 60 90 60 90 78
+finy	hex 27 27 47 47 67
+
+mv29	dw fb00
+	dw m_01,m_02
+
+
+	;
+	;Statue of wizard
+	;
+fb2a	aseq 0041
+	rvar s0		;mirage
+	time 04
+	hex 00 01 02 03 04 05
+	goto -6
+	rvar s1		;appearance
+	hex 06 07 08 0c
+	done
+
+	avar m_01
+	lda #$8a	;set y
+	sta obyl,x
+	lda #$02	;problem done?
+	jsr deadob
+	lsr a		;no, set correct anim seq
+	lda #s0	;mirage
+	bcc !a
+	lda obchr,x	;statue
+	and #%11001111	;set bullets explode,don't damage
+	sta obchr,x
+	lda #s1+3
+!a	jsr modenext
+
+	avar m_02
+	jmp anim
+
+mv2a	dw fb2a
+	dw m_01,m_02
+
+
+	;
+	;Twin man
+	;
+fb2b	aseq 0000
+	rvar s0
+	sdfx 03
+	hex 13
+	done
+
+	avar m_01
+	lda #$24	;is slab on?
+	jsr obscan
+	bpl !a
+	sec		;no, delete object
+	ror obtyp,x
+	sfx 05
+!a	jmp anim
+
+mv2b	dw fb2b
+	dw m_01
+
+
+	;
+	;Get multiple-choice response
+	;OUT:C=0=not answered yet
+	;    C=1:A=0=answer right
+	;
+getresp	lda dlr	;update cursor x
+	clc
+	adc aind
+	cmp aind	;moved?
+	beq !a
+	cmp #$03	;yes, out of range?
+	bcc !b
+!a	ldx dfirea	;yes, but is fire pressed?
+	beq !c
+!b	pha		;yes/moved
+	ldx #spc	;erase old cursor
+	jsr pcurs
+	pla		;set new cursor x
+	sta aind
+	ldx dfirea	;fire pressed?
+	beq !c
+	eor cind	;yes, get right/wrong
+	sec		;flag answered
+	rts
+
+!c	ldx #rightarrow	;display new arrow
+	jsr pcurs
+	clc		;& flag not answered
+	rts
+
+pcurs	ldy aind	;display answer cursor
+	lda ansoff,y
+	ldy pany
+	iny
+	jmp printchr
+ansoff	hex 02 0c 15

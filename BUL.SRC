@@ -1,0 +1,256 @@
+	;
+	;1st spr no. of bullet frames
+	;
+bulfrms	hex c0	;00 diagonal dagger 1x1
+	hex c1	;01 firey rain
+	hex c2	;02 axe
+	hex c3	;03 l0 fire bolt
+	hex ca	;04 l0 electricity bolt
+	hex d1	;05 l0 ven bolt
+	hex d8	;06 small explosion 0
+	hex d9	;07 small explosion 1
+	hex da	;08 small explosion 2
+	hex db	;09 small explosion 3
+	hex dc	;0a twinkle 0
+	hex dd	;0b twinkle 1
+	hex de	;0c twinkle 2
+	hex df	;0d horizontal dagger
+	hex 72	;0e mushroom bnk 4d pal 3
+	hex 73	;0f
+	hex 74	;10
+	hex 75	;11
+	hex 76	;12
+	hex 77	;13
+	hex 78	;14
+	hex 79	;15
+	hex 7a	;16
+	hex 66	;17 fountain bnk 72 pal 2
+	hex 67	;18
+	hex 68	;19
+	hex 69	;1a
+	hex 6a	;1b
+bu1x1	equ *-bulfrms
+
+	hex c4	;1c l1 fire bolt 2x1
+	hex c6	;1d l2 fire bolt
+	hex c8	;1e l3 fire bolt
+	hex cb	;1f l1 electricity bolt
+	hex cd	;20 l2 electricity bolt
+	hex cf	;21 l3 electricity bolt
+	hex d2	;22 l1 ven bolt
+	hex d4	;23 l2 ven bolt
+	hex d6	;24 l3 ven bolt
+bu2x1	equ *-bulfrms
+
+	hex e0	;25 boulder 2x2
+	hex e4	;26 big explosion 0
+	hex e8	;27 big explosion 1
+	hex ec	;28 big explosion 2
+	hex f0	;29 big explosion 3
+	hex f4	;2a big explosion 4
+	hex f8	;2b big explosion 5
+	hex fc	;2c cross
+bu2x2	equ *-bulfrms
+
+
+	;
+	;Bullet anim seqs
+	;
+bs00	bfram 03	;l0 fire bolt
+	bgoto 9
+bs01	bfram 1c	;l1 fire bolt
+	bgoto 6
+bs02	bfram 1d	;l2 fire bolt
+	bgoto 3
+bs03	bfram 1e	;l3 fire bolt
+	bsdfx 0c
+	btime 6
+	bmask 01100000,00000001
+	bexit
+	bmask 01100000,10000001
+	bexit
+	bgoto -8
+
+bs04	bfram 04	;l0 electricity bolt
+	bgoto 9
+bs05	bfram 1f	;l1 electricity bolt
+	bgoto 6
+bs06	bfram 20	;l2 electricity bolt
+	bgoto 3
+bs07	bfram 21	;l3 electricity bolt
+	bsdfx 0c
+	btime 6
+	bmask 01100000,00000010
+	bexit
+	bmask 01100000,10000010
+	bexit
+	bgoto -8
+
+bs08	bfram 05	;l0 ven bolt
+	bgoto 9
+bs09	bfram 22	;l1 ven bolt
+	bgoto 6
+bs0a	bfram 23	;l2 ven bolt
+	bgoto 3
+bs0b	bfram 24	;l3 ven bolt
+	bsdfx 0c
+	btime 6
+	bmask 01100000,00000011
+	bexit
+	bmask 01100000,10000011
+	bexit
+	bgoto -8
+
+bs0c	bsdfx 25	;small explosion
+	btime 5
+	bfram 06
+	bexit
+	bfram 07
+	bexit
+	bfram 08
+	bexit
+	bfram 09
+	bexit
+	bdone
+
+bs0d	bsdfx 28	;twinkling star
+	btime 5
+	bmask 01100000,00000010
+	bfram 0a
+	bexit
+	bfram 0b
+	bexit
+	bfram 0c
+	bexit
+	bfram 0b
+	bexit
+	bgoto -8
+
+bs0e	bsdfx 08	;boulder
+	bfram 25
+	bmask 01100000,00000010
+	bexit
+	bgoto -1
+
+bs0f	bsdfx 25	;big explosion
+	btime 5
+	bmask 01100000,00000010
+	bfram 26
+	bexit
+	bfram 27
+	bexit
+	bfram 28
+	bexit
+	bfram 29
+	bexit
+	bfram 2a
+	bexit
+	bfram 2b
+	bexit
+	bdone
+
+bs10	bfram 01	;fiery rain
+	bmask 01100000,00000001
+	bsdfx 01
+	bexit
+	bgoto -1
+
+bs11	bfram 00	;diagonal dagger
+	bmask 01100000,00000010
+	bsdfx 01
+	bexit
+	bgoto -1
+
+bs12	bfram 02	;spinning axe
+	bmask 01100000,00000010
+	btime 04
+	bsdfx 09
+	bspin
+	bgoto -1
+
+bs13	btime 12	;fountain room water droplet
+	bmask 01100000,00000010
+	bfram 17
+	bexit
+	bfram 18
+	bexit
+	bfram 19
+	bexit
+	bfram 1a
+	bexit
+	bfram 1b
+	bexit
+	bgoto -12
+
+bs14	bsdfx 01	;straight dagger
+	bfram 0d
+	bmask 01100000,00000010
+	bexit
+	bgoto -1
+
+bs15	bsdfx 1b	;cross
+	bfram 2c
+	bmask 01100000,00000010
+	bdone
+
+bs16	bmask 01100000,00000011	;mushroom spore
+	bsdfx 0f
+	btime 10
+	bfram 0e
+	bexit
+	bfram 0f
+	bexit
+	bfram 10
+	bexit
+	bfram 11
+	bexit
+	bfram 12
+	bexit
+	bsdfx 0e
+	bfram 13
+	bexit
+	bgoto -1
+	bfram 14
+	bexit
+	bgoto -1
+	bfram 15
+	bexit
+	bgoto -1
+	bfram 16
+	bexit
+	bgoto -1
+
+
+bs_fbolt0	equ $00	;fire bolts
+bs_fbolt1	equ $01
+bs_fbolt2	equ $02
+bs_fbolt3	equ $03
+bs_ebolt0	equ $04	;electricity bolts
+bs_ebolt1	equ $05
+bs_ebolt2	equ $06
+bs_ebolt3	equ $07
+bs_vbolt0	equ $08	;ven bolts
+bs_vbolt1	equ $09
+bs_vbolt2	equ $0a
+bs_vbolt3	equ $0b
+bs_smlexp	equ $0c	;small explosion
+bs_twinkl	equ $0d	;twinlke
+bs_bouldr	equ $0e	;boulder
+bs_bigexp	equ $0f	;big explosion
+bs_firain	equ $10	;firey rain
+bs_diadag	equ $11	;diagonal dagger
+bs_spnaxe	equ $12	;spinning axe
+bs_founwd	equ $13	;fountain water droplet
+bs_strdag	equ $14	;straight dagger
+bs_cross	equ $15	;cross
+bs_spore	equ $16	;mushroom spore
+
+
+bseql	dl bs00,bs01,bs02,bs03,bs04,bs05,bs06,bs07
+	dl bs08,bs09,bs0a,bs0b,bs0c,bs0d,bs0e,bs0f
+	dl bs10,bs11,bs12,bs13,bs14,bs15,bs16
+
+bseqh	dh bs00,bs01,bs02,bs03,bs04,bs05,bs06,bs07
+	dh bs08,bs09,bs0a,bs0b,bs0c,bs0d,bs0e,bs0f
+	dh bs10,bs11,bs12,bs13,bs14,bs15,bs16
+

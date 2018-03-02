@@ -1,0 +1,11 @@
+
+lake 3.?
+--------
+
+00 "you stand on the shore of a large lake. as darkness falls a storm develops on the horizon."
+01 "a grim-looking man approaches in a small boat."
+02 "as you cross the lake you notice your home town in the distance. the reflected lights dance on the lake. you feel slightly homesick."
+03 "a stone causeway stretches out in-front of you."
+04 "the warm lights from inside the buildings look extremely welcoming."
+05 "you reach the far shore safely and continue on your way."
+06 $ 10 03

@@ -1,0 +1,12 @@
+
+dungeon 6.?
+-----------
+
+00 "the passage is blanketed in an eerie silence, broken only by the sound of running water. you feel intensely uneasy."
+01 "along the passage you find a series of iron gates set into the wall."
+02 "you see two inanimate suits of armour."
+03 "a slab of stone blocks your path."
+04 "you see a wise-looking old man sitting cross-legged on the floor."
+05 "'my name is mensim. entering the magical door has broken the spell that imprisoned me. thank-you.'"
+06 "'combine the four elements to create a very powerful potion to use against abadon.'"
+07 "the wise man vanishes in a cloud of smoke."

@@ -1,0 +1,456 @@
+	;
+	;Handle shop/pub/church/post office levels
+	;
+shopx	hex 1c 1c 1c 1c d4 d4 d4 d4	;shop x pos
+shopy	hex 24 44 64 84 24 44 64 84	;shop y pos
+
+shopdatum	hex 3a 3c 3d 3f 3f 3f 3f	;00 pub 1 - TOWN
+	hex 01 02 03 04 06 3f 3f	;01 shop 1
+	hex 1c 3f 3f 3f 3f 3f 3f	;02 p.o. 1
+	hex 12 1a 1b 06 3f 3f 3f	;03 jumble sale
+	hex 3c 3b 3f 3f 3f 3f 3f	;04 church
+	hex 3a 3c 3d 3f 3f 3f 3f	;05 pub 2
+	hex 8b 9a 8f 93 9c 9f 85	;06 shop 2
+	hex 80 8e 21 23 3f 3f 3f	;07 windowless - WILDERNESS
+	hex 02 01 04 06 03 3f 3f	;08 shop 1 - LAKE
+	hex 20 21 22 23 a7 a5 3f	;09 shop 2
+	hex 3a 3c 3d 3f 3f 3f 3f	;0a pub 1
+	hex 06 04 03 02 01 3f 3f	;0b shop 1 - FOREST
+	hex 3c 3b 3f 3f 3f 3f 3f	;0c church
+
+	;
+	;Chests that start in rooms
+	;
+choff0	equ (*-shopdatum)/$7
+	hex 04 3f 3f 3f 3f 3f 3f	;00 well
+
+	;
+	;Chests that appear after nmes killed
+	;
+choff1	equ (*-shopdatum)/$7
+	hex 1d 3f 3f 3f 3f 3f 3f	;00 spitting plant
+	hex 1d 3f 3f 3f 3f 3f 3f	;01
+	hex 0e 3f 3f 3f 3f 3f 3f	;02
+	hex 3f 3f 3f 3f 3f 3f 3f	;03
+	hex 3f 3f 3f 3f 3f 3f 3f	;04
+	hex 3f 3f 3f 3f 3f 3f 3f	;05
+	hex 23 3f 3f 3f 3f 3f 3f	;06
+	hex 3f 3f 3f 3f 3f 3f 3f	;07
+	hex 0b 3f 3f 3f 3f 3f 3f	;08
+	hex 12 3f 3f 3f 3f 3f 3f	;09
+	hex 23 3f 3f 3f 3f 3f 3f	;0a
+	hex 3f 3f 3f 3f 3f 3f 3f	;0b
+	hex 3f 3f 3f 3f 3f 3f 3f	;0c
+	hex 14 3f 3f 3f 3f 3f 3f	;0d
+	hex 3f 3f 3f 3f 3f 3f 3f	;0e
+	hex 3f 3f 3f 3f 3f 3f 3f	;0f
+	hex 3f 3f 3f 3f 3f 3f 3f	;10
+	hex 3f 3f 3f 3f 3f 3f 3f	;11
+	hex 3f 3f 3f 3f 3f 3f 3f	;12
+	hex 23 3f 3f 3f 3f 3f 3f	;13
+	hex 3f 3f 3f 3f 3f 3f 3f	;14
+	hex 3f 3f 3f 3f 3f 3f 3f	;15
+	hex 3f 3f 3f 3f 3f 3f 3f	;16
+	hex 3f 3f 3f 3f 3f 3f 3f	;17
+
+
+shl	equ $0180	;icon control list lo ptr
+shh	equ shl+$8	;icon control list hi ptr
+shi	equ shh+$8	;icon control list index
+
+buy	equ $00	;buy object at this position
+emp	equ $01	;blank object
+exit	equ $02	;,msg : exit back to game
+g1	equ $03	;-1 gold,if gold=0 then jp 0
+mana10	equ $04	;mana limit=mana limit+1
+yn	equ $05	;,msg,jp if no : yes follows
+msg	equ $06	;,msg : send msg to panel
+set	equ $07	;,bit : set bit
+clr	equ $08	;,bit : reset bit
+tst	equ $09	;,bit,=1 jp : test bit (=0 follows)
+jp	equ $0a	;,ind : jp to new index
+gover	equ $0b	;,msg : game over
+addob	equ $0c	;,ob : add object to inventory
+delob	equ $0d	;,ob : delete object from inventory
+chb	equ $0e	;take chest object at this position
+tstp	equ $0f	;same as " " in perm. flags
+setp	equ $10
+clrp	equ $11
+
+shoplist
+ ;LEVEL 1
+ ;pub 1
+ db g1,set,drink,msg,$01,g1,msg,$01,g1,msg,$02,gover+$80	;tankard
+ db tst,drink,$07,msg,$04,jp,$00,msg,$05,msg,$04,jp,$09+$80	;lips
+ db msg,$06,msg,$07,msg,$08,jp,$04+$80 ;ear
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$25+$80
+ ;shop 1
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db emp+$80
+ db emp+$80
+ db exit,$25+$80
+ ;p.o. 1
+ db tst,gotlet,$07,msg,$0a,jp,$03
+ db clrp,gotlet,setp,sentlet,delob,$1c,msg,$09,jp,$03+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$25+$80
+ ;jumble 1
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$25+$80
+ ;church 1
+ db tst,asked,$13 ;lips
+ db set,asked,yn,$0c,$11,setp,gotlet,addob,$1c,msg,$0e,msg,$19,emp
+ db msg,$0d,msg,$28,emp+$80
+ db tst,flask,$0b,set,flask,mana10,addob,$13,msg,$10,emp ;prayer book
+ db msg,$28,emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$29+$80
+
+ ;pub 2
+ db g1,set,drink,msg,$01,g1,msg,$01,g1,msg,$02,gover+$80	;tankard
+ db tst,drink,$07,msg,$04,jp,$00,msg,$11,msg,$04,jp,$09+$80	;lips
+ db msg,$12,msg,$13,msg,$08,jp,$04+$80 ;ear
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$25+$80
+ ;shop 2
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db exit,$25+$80
+
+ ;LEVEL 2
+ ;windowless
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$25+$80
+
+ ;LEVEL 3
+ ;shop 1
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db emp+$80
+ db emp+$80
+ db exit,$25+$80
+ ;shop 2
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db emp+$80
+ db exit,$25+$80
+ ;pub 1
+ db g1,set,drink,msg,$01,g1,msg,$01,g1,msg,$02,gover+$80	;tankard
+ db tst,drink,$07,msg,$04,jp,$00,msg,$14,msg,$04,jp,$09+$80	;lips
+ db msg,$15,msg,$16,msg,$08,jp,$04+$80 ;ear
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$25+$80
+
+ ;LEVEL 4
+ ;shop 1
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db buy+$80
+ db emp+$80
+ db emp+$80
+ db exit,$25+$80
+ ;church 1
+ db tstp,gotlet,$10	;lips
+ db tstp,sentlet,$09,msg,$19,emp,msg,$17,msg,$18,clrp,sentlet,emp
+ db delob,$1c,msg,$17,msg,$2c,clrp,gotlet,emp+$80
+ db tst,bless2,$09,set,bless2,mana10,msg,$27,emp,msg,$28,emp+$80	;book
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$29+$80
+
+ ;CHESTS
+ db chb+$80	;00
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;01
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;02
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;03
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;04
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;05
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;06
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;07
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;08
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;09
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;0a
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;0b
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;0c
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;0d
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;0e
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;0f
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;10
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;11
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;12
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;13
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;14
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;15
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;16
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;17
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+ db chb+$80	;18
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db emp+$80
+ db exit,$2d+$80
+
+
+ms0	dc "THIS "
+ms1	dc "THESE "
+ms2	dc " WILL COST YOU "
+ms3	db " GOLD",fs+$80
+ms4	dc " YOU HAVE "
+ms5	db " GOLD",fs,spc+$80
+
+ms6	dc "YOU TAKE THE "
+ms7	dc "YOU TRY TO TAKE THE "
+ms8	db com," BUT YOU HAVE ENOUGH ALREADY",fs+$80
+
+ijvl	dl sbuy,sempty,sexit,sgold1,smana10,syesno,smsg,sset
+	dl sclr,stst,sjump,sgover,saddob,sdelob,sbch
+	dl ststp,ssetp,sclrp
+ijvh	dh sbuy,sempty,sexit,sgold1,smana10,syesno,smsg,sset
+	dh sclr,stst,sjump,sgover,saddob,sdelob,sbch
+	dh ststp,ssetp,sclrp

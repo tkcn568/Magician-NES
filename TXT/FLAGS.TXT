@@ -1,0 +1,160 @@
+
+
+OBJECT EVENT FLAG USAGE
+~~~~~~~~~~~~~~~~~~~~~~~
+
+N.B. :- events triggered only once while on-screen and OBMOD=$01 when triggered.
+
+
+if not object that turns into CHEST after DEATH
+bit-2 of flag	: 0=alive, 1=dead
+bit-3 of flag	: if bit-2=0 0=not INTERACTED with,1=INTERACTED with
+		: if bit-2=1 0=body not SEARCHED,1=body SEARCHED
+else
+bit-2 of flag	: 0=alive, 1=dead
+bit-3 of flag	: if bit-2=1 0=CHEST not SEARCHED/CONVERT to chest on activation
+		:	     1=CHEST searched/DELETE on activation
+
+
+Bits 0..1 usage :-
+
+00 PLAYER
+   none
+
+01 WIZARD
+   0=normal (stand/walk/interact)
+   1=fight  (permanently attack plr even after re-activation)
+
+02 SPITTING PLANT
+   none
+
+03 BOATMAN
+   none
+
+04 VICTORY MACHINE
+   none
+
+05 MUSHROOM
+   none
+
+06 TALKING TREE
+   0=asleep waiting for WAKEY WAKEY
+   1=awake waiting for TRANSLATE
+   2=awake translated
+
+07 TALKING SNAKE
+   0=INIT snake after plr attempt to leave
+   1=wait for plr RESPONSE
+   2=RESPONSE correct - move to new level if plr attempts to leave
+
+08 BEGGAR
+   none
+
+09 TROLL
+   as wizard
+
+0A OLD WOMAN
+   none
+
+0B TURTLE
+   none
+
+0C SPECTRE E
+   as wizard
+
+0D MARSH GAS
+   none
+
+0E VINES
+   none
+
+0F BARBARIAN
+   as wizard
+
+10 ADVENTURER
+   as wizard
+
+11 MONK
+   as wizard
+
+12 BEHOLDER E
+   as wizard
+
+13 STALAGMITE
+   none
+
+14 WINGED SERPENTS
+   as wizard
+
+15 WEREBAT
+   as wizard
+
+16 VENWORM
+   as wizard
+
+17 LITTLE DRAGON
+   none
+
+18 ARMOUR
+   as wizard
+
+19 WISE OLD MAN
+   none
+
+1A SKELETON E
+   as wizard
+
+1B YOUNG WOMAN
+   none
+
+1C SPIDER
+   as wizard
+
+1D STONEMAN
+   as wizard
+
+1E RAT
+   as wizard
+
+1F FIRE ELEMENTAL E
+   as wizard
+
+20 DEMON E
+   as wizard
+
+21 SPIKES ON ROOF
+   none
+
+22 ABADON E
+   undecided as yet
+
+23 TREASURE CHEST
+bit-0=0 : locked waiting for KEY
+bit-0=1 & bit-3=0 : unlocked waiting for SEARCH
+bit-3=1 : searched
+
+24 SLAB
+   none
+
+25 PENDULUM
+   none
+
+26 FOUNTAIN
+   none
+
+27 STATUE
+   none
+
+28 SPHINX
+   as talking snake
+
+29 FINAL SPELL MACHINE
+   none
+
+2A STATUE OF WIZARD
+   0=illusion waiting for REVEAL
+   1=statue waiting for WAKEY WAKEY
+
+2B TWIN MAN
+   none
+

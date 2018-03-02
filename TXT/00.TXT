@@ -1,0 +1,28 @@
+
+help 0.?
+--------
+
+00 "you're doing fine."
+01 "it does no harm to pray.."
+02 "searching often brings rewards.."
+03 "show some initiative.."
+04 "a statue of a sleeping wizard.."
+05 "there should be a door, but where?"
+06 "tread lightly but rapidly.."
+07 "the only way is up!"
+08 "nothing is free in this life.."
+09 "leap wisely.."
+0a "this isn't what you would call holy water.."
+0b "an interpreter may help.."
+0c "must you be told everything?"
+0d "he needs no gold.."
+0e "a weighty problem.."
+0f "you are lost in a maze.."
+10 "use your charm.."
+11 "fill your flask.."
+12 "this problem has two aspects.."
+13 "slowly and briskly does it.."
+14 "is the action getting too hot?"
+15 "a final elementary assembly problem.."
+16 "the fate of your people now rests with you.."
+

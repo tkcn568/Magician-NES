@@ -1,0 +1,596 @@
+	;
+	;Magician sprite displayer
+	;
+
+	radix 10
+	option 0,0	;"<" means lo-byte
+	send computer1
+
+	;
+	;MACROS
+	;
+	;Define variables
+	;@1=variable name
+	;@2=bytes required
+	;
+zp	macro
+@1	equ z
+z	= z+@2
+	endm
+
+	;
+	;Load prg or chr data (@2..@5 are optional)
+	;@1=pathname (C:\DEV\DAT\@1)
+	;@2=physical origin
+	;@3=logical origin
+	;@4=4k chr bank/8k prg bank
+	;@5=label which takes value of origin before INCBIN (if @5="!"
+	;   then @1 is used as the label name)
+	;
+load	macro
+	ifs [@2] []
+	else
+	ifs [@3] []
+	org @2
+	else
+	org @2,@3
+	endif
+	endif
+	ifs [@5] []
+	else
+	ifs [@5] [!]
+@1	equ *
+	else
+@5	equ *
+	endif
+	endif
+	incbin dat\@1
+	ifs [@4] []
+	else
+	if *>$7fff
+	bank @4
+	else
+	error
+	bank @4*$04
+	endif
+	endif
+	endm
+
+
+	;RAM variables (zero-page)
+	;** Do not alter order! **
+z	= $00
+
+	zp r0,1	;copy of MMC3 bank registers
+	zp r1,1
+	zp r2,1
+	zp r3,1
+	zp r4,1
+	zp r5,1
+	zp r6,1
+	zp r7,1
+
+	zp p0,1	;copy of PPU register 0 ($2000)
+
+	zp t0,1	;general-purpose temporary storage
+	zp t1,1
+	zp t2,1
+	zp t3,1
+	zp t4,1
+	zp t5,1
+	zp t6,1
+	zp t7,1
+	zp t8,1
+	zp t9,1
+	zp ta,1
+	zp tb,1
+	zp tc,1
+	zp td,1
+	zp te,1
+	zp tf,1
+	zp t10,1
+	zp t11,1
+	zp t12,1
+	zp t13,1
+
+	zp jt,2	;dynamic joypad vars
+	zp lr,1
+	zp ud,1
+	zp sta,1
+	zp sel,1
+	zp fireb,1
+	zp firea,1
+	zp dlr,1	;debounced joypad vars
+	zp dud,1
+	zp dsta,1
+	zp dsel,1
+	zp dfireb,1
+	zp dfirea,1
+	zp oldlr,6	;debounce vars
+
+	zp second,1	;1 second timer
+
+	zp sprind,1	;spr insertion index
+
+	zp fbase,2	;base of frames
+	zp numspr,1
+
+	zp autodel,1
+
+
+	;RAM variables (non zero-page)
+	;** Do not alter order! **
+z	= $0200		;** Unexpanded RAM $0000-$07FF **
+
+	;Spr variables
+	zp spr,$100		;Sprite data page
+
+
+	org $a000
+	include \zdev\seq.src
+
+	org $c000
+	;
+	;Reset routine
+	;
+reset	lda #$08	;NMI off,DMA+1
+	sta $2000
+	sei		;IRQ off
+	ldx #$00	;blank screen
+	stx $2001
+	cld		;binary mode
+	sta p0	;save copy of $2000
+	inx
+!a	lda $2002	;wait till PPU reset
+	bpl !a
+	dex
+	bpl !a
+	txs		;init stack ptr
+	inx
+	stx $8000	;set MMC3 map mode0,interval timer in-use
+	stx $e000	;disable MMC3 interval timer
+	stx $4015	;disable sound chip channels A..E
+	stx $4010	;stop delta modulation generating IRQs
+	lda #$40
+	sta $4017	;make vertical blanks cause NMIs
+	lda $2002	;clear NMI flag
+	lda #$10	;init MMC3 interval timer
+	tax
+!b	sta $2006
+	sta $2006
+	eor #$00
+	dex
+	bne !b
+	stx $a000	;select MMC3 horizontal scroll mapping
+	stx fbase
+	stx fbase+1
+	lda #$06
+	sta $8000
+	lda #$00
+	sta $8001
+	lda #$07
+	sta $8000
+	lda #$01
+	sta $8001
+
+	jsr initscn
+
+	lda #$88
+	sta p0
+	sta $2000
+loop	jmp loop
+
+
+	;
+	;Main game NMI
+	;NB:this routine does some very subtle stuff,but no time to explain
+	;
+nmi0	jsr pfrm
+
+	lda #$3f	;set chr & spr palettes
+	sta $2006
+	ldy #$00
+	sty $2006
+	ldx #$60
+!b	lda curchrpal-$60,x
+	sta $2007
+	inx
+	bpl !b
+
+!b0	ldy #$00
+	sty $2003	;initialise & start sprite DMA
+	lda #>spr
+	sta $4014
+
+	lda #$f8	;enable scn & sprs with left-side blanking
+	sta $2001
+
+	ldx #$3f	;re-stabilise colour generator
+	stx $2006
+	sty $2006	;Y=$00
+	sty $2006	;& set end of 'undetermined zone'
+	sty $2006
+
+	and p0	;A=$F8 - set scroll x,y after DMA access
+	sta p0
+	sta $2000
+	sty $2005
+	sty $2005
+
+	sty sprind
+
+	jsr setmmc3a	;Y=$00 - set MMC3 chr/spr banks
+
+	jsr joykey	;scan joypad
+
+	jsr doauto
+	bcs !y
+	lda ud
+	tax
+	beq !y
+	bmi !x
+	dex
+!x	clc
+	adc fbase
+	sta fbase
+	txa
+	adc fbase+1
+	sta fbase+1
+
+!y	jsr frame
+	lda sprind
+	asl a
+	asl a
+	bcs niexit
+	tax
+	lda #$ff
+!z	sta spr,x
+	inx
+	inx
+	inx
+	inx
+	bne !z
+
+niexit	pla		;exit NMI/IRQ
+	tay
+	pla
+	tax
+	pla
+irq	rti
+
+
+	;
+	;Handle up/down auto-repeat
+	;OUT:C=1=no u/d
+	;
+doauto	sec
+	lda ud	;any stick u/d?
+	beq !b
+	lda #$14	;yes, lead-in delay
+	dec autodel
+	bmi !a
+	bne !c
+	lda #$04	;repeat delay
+!a	clc
+!b	sta autodel
+!c	rts		;& exit with C=0/1
+
+
+nmi	pha
+	txa
+	pha
+	tya
+	pha
+	lda $2002	;clear NMI flag
+	jmp nmi0
+
+
+	;
+	;Scan joypad, returning dynamic & debounced values
+	;
+joykey	jsr jk0	;debounce joypad
+	ldx jt	;by waiting until the joypad returns
+	jsr jk0	;two consecutive equal values
+	cpx jt
+	bne joykey
+
+	txa		;extract bits into bytes
+	ldx #$07
+!a	asl a
+	ldy #$00
+	bcc !b
+	iny
+!b	sty jt,x
+	dex
+	bpl !a
+
+	ldx lr	;set ud
+	bne !c
+	ldx lr+1
+	beq !c
+	ldx #$ff
+!c	stx ud
+
+	ldx jt	;set lr
+	bne !d
+	ldx jt+1
+	beq !d
+	ldx #$ff
+!d	stx lr
+
+	ldx #$05	;set debounced values
+!e	lda lr,x
+	beq !f
+	cmp oldlr,x
+	beq !g
+!f	sta oldlr,x
+	db $2c
+!g	lda #$00
+	sta dlr,x
+	dex
+	bpl !e
+
+	rts
+
+jk0	lda #$01
+	sta jt	;init for 8 reads
+	sta $4016	;init I/O port for joystick read
+	lsr a
+	sta $4016
+!a	lda $4016	;serially read 8 2-bit values from I/O port
+	and #$03	;%00=%0,%01=%1,%10=%1,%11=%1
+	cmp #$01
+	rol jt
+	bcc !a
+	rts
+
+
+	;
+	;Set MMC3 banks
+	;
+setmmc3	ldy #$00	;set MMC3 chr banks
+setmmc3a	ldx #$7c
+	sty $8000
+	stx $8001
+	iny
+	inx
+	inx
+	sty $8000
+	stx $8001
+	iny		;set MMC3 spr banks
+	ldx r2
+	sty $8000
+	stx $8001
+	iny
+	ldx r3
+	sty $8000
+	stx $8001
+	iny
+	ldx r4
+	sty $8000
+	stx $8001
+	iny
+	ldx r5
+	sty $8000
+	stx $8001
+	rts
+
+
+
+	;
+	;Display sprite frame
+	;IN  :FBASE=frame no.
+	;USES:T0..T13 (TA unused)
+	;
+frame	lda #$00	;set spr def bits 6-7 mask
+	sta tc
+	sta td	;set MMC3 index
+	sta t8	;set no x/y flip
+
+	lda #<$0080
+	sta t10
+	lda #>$0080
+	sta t11
+	lda #<$0080
+	sta t12
+	lda #>$0080
+	sta t13
+
+	lda fbase
+	sta te
+	lda fbase+1
+	asl te
+	rol a
+	sta tf
+	lda te
+	asl a
+	tax
+	lda tf
+	rol a
+	tay
+	txa
+	adc te
+	sta te
+	tya
+	adc tf
+	ora #>$a000
+	sta tf
+
+	ldy #$05	;set ptrs to tables
+	lda (te),y
+	tax
+	lda cpltab,x
+	sta t6
+	lda cphtab,x
+	sta t7
+	dey
+	lda (te),y
+	tax
+	lda dpltab,x
+	sta t4
+	lda dphtab,x
+	sta t5
+	dey
+	lda (te),y
+	tax
+	lda ypltab,x
+	sta t2
+	lda yphtab,x
+	sta t3
+	dey
+	lda (te),y
+	tax
+	lda xpltab,x
+	sta t0
+	lda xphtab,x
+	sta t1
+	dey		;set hardware spr bank 0..3
+	ldx td
+	lda (te),y
+	sta r2,x
+	dey
+	lda (te),y	;set no. of sprs in this frame
+	sta t9
+	sta numspr
+
+	lda (t6),y	;set palette byte
+	sta td
+	lda #$04	;set count
+	sta te
+	sty tf	;set index
+
+	lda sprind	;get spr index
+	asl a
+	asl a
+	bcs !z
+	tax
+
+!b	lda t8	;get x/y flip / 2
+	asl td	;extract 2-bit palette
+	rol a
+	asl td
+	rol a
+	sta spr+2,x	;set col+flip status
+	dec te	;need new palette byte?
+	bne !c
+	lda #$04	;yes, reset count
+	sta te
+	sty tb	;save Y
+	inc tf	;get new byte
+	ldy tf
+	lda (t6),y
+	sta td
+	ldy tb	;restore Y
+
+!c	bit t8	;x
+	lda (t0),y
+	clc
+	bvc !d
+	eor #$ff
+	adc #$01
+	clc
+!d	bmi !f
+	adc t10
+	sta spr+3,x
+	lda #$00
+	adc t11
+	beq !g
+	bne !j
+!f	adc t10
+	sta spr+3,x
+	lda #$ff
+	adc t11
+	bne !j
+
+!g	lda (t2),y	;y
+	clc
+	bmi !h
+	adc t12
+	sta spr,x
+	lda #$00
+	adc t13
+	beq !i
+	bne !j
+!h	adc t12
+	sta spr,x
+	lda #$ff
+	adc t13
+	bne !j
+
+!i	lda (t4),y	;def
+	ora tc	;+ bank
+	sta spr+1,x
+
+	inc sprind	;move to next spr
+	inx
+	inx
+	inx
+	inx
+	beq !z
+
+!j	iny		;do all sprs in this frame
+	cpy t9
+	bcc !b
+
+!z	rts		;exit
+
+
+
+initscn	lda #$20
+	sta $2006
+	lda #$00
+	sta $2006
+	ldx #<-$03c0
+	ldy #>-$03c0
+	lda #$20
+!a	sta $2007
+	inx
+	bne !a
+	iny
+	bne !a
+	lda #$00
+	ldx #$40
+!b	sta $2007
+	dex
+	bne !b
+	rts
+
+
+pfrm	lda #>$2000+4+6*32
+	sta $2006
+	lda #<$2000+4+6*32
+	sta $2006
+	lda fbase+1
+	jsr phex2
+	lda fbase
+	jsr phex2
+	lda #$20
+	sta $2007
+	lda r2
+	jsr phex2
+	lda #$20
+	sta $2007
+	lda numspr
+
+phex2	pha
+	lsr a
+	lsr a
+	lsr a
+	lsr a
+	jsr !a
+	pla
+	and #$0f
+!a	cmp #$0a
+	bcc !b
+	adc #$36
+!b	sta $2007
+	rts
+
+
+curchrpal	HEX 0F2838300F1031300F2839300F001030
+	HEX 100F27370F0F26360F0F10300F0F2A3A
+
+	org $fffa
+	dw nmi,reset,irq
+
+	end

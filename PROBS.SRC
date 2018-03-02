@@ -1,0 +1,901 @@
+
+
+	;
+	;Handle any plr-position triggered events
+	;
+ret04	popbnk 6
+ret04a	rts
+
+plrevents	lda vicflg	;no pts after victory
+	bne ret04a
+	sta uflg	;allow interaction
+	sta dflg	;allow searching
+	clc
+	lda obxl+pi	;set plr pixel x,y pos
+	and #$f8	;** resolution to nearest chr
+	sta t0
+	adc #p_width
+	sta t2
+	lda obxh+pi
+	sta t1
+	adc #$00
+	sta t3
+	lda obyl+pi
+	and #$f8
+	sta t4
+	adc #p_height
+	sta t6
+	lda obyh+pi
+	sta t5
+	adc #$00
+	sta t7
+
+	pushbnk 6	;bank in event data
+	bnk 6,#bev
+
+	ldy curlevind	;for this level
+	lda ptl,y	;set ptr to plr-triggered event data
+	sta t10
+	lda pth,y
+	sta t11
+	ldx ptbas,y	;get plr-triggered event flag base
+
+!a	ldy #$00	;x-check event data
+	lda (t10),y
+	cmp #$81	;FF=end of data
+	beq ret04
+	clc
+	sta t8
+	iny
+	adc (t10),y
+	sta ta
+	iny
+	lda (t10),y
+	sta t9
+	adc #$00
+	sta tb
+
+	lda t0
+	cmp t8
+	lda t1
+	sbc t9
+	bcc !b
+	lda ta
+	cmp t2
+	lda tb
+	sbc t3
+	bcc !b
+
+	iny		;y-check event data
+	lda (t10),y
+	sta tc
+	iny
+	adc (t10),y	;C=1
+	sta te
+	iny
+	lda (t10),y
+	sta td
+	adc #$00
+	sta tf
+
+	lda t4
+	cmp tc
+	lda t5
+	sbc td
+	bcc !b
+	lda te
+	cmp t6
+	lda tf
+	sbc t7
+	bcs !d
+
+!b	inx		;inc event flag no.
+	lda t10	;& check next event data
+	adc #$08	;C=0
+	sta t10
+	bcc !a
+	inc t11
+	bcs !a
+
+!d	ldy #$07	;get plr-triggered event data
+	lda (t10),y
+	sta t2
+	dey		;get plr-triggered event type
+	lda (t10),y
+	tay
+	lda prvl,y	;set jump vector to handling code
+	sta t4
+	lda prvh,y
+	sta t5
+	stx t8
+	popbnk 6
+	lda t2	;A/T2=plr-triggered event data
+	jmp (t4)	;X/T8=event flag no.
+
+
+prvl	dl pr00,pr01,pr02,pr03,pr04,pr05,pr06,pr07
+	dl pr08,pr09,pr0a,pr0b,pr0c,pr0d,pr0e,pr0f
+	dl pr10
+prvh	dh pr00,pr01,pr02,pr03,pr04,pr05,pr06,pr07
+	dh pr08,pr09,pr0a,pr0b,pr0c,pr0d,pr0e,pr0f
+	dh pr10
+
+pr00	lda #$0a	;leave level & goto map showing next level
+	ldx #$e2
+	jmp newlev
+
+
+pr01	jsr facel	;enter level when facing left
+	jmp pr04a
+
+
+pr02	jsr facer	;enter level when facing right
+	jmp pr04a
+
+
+pr03	jsr faceu	;enter level when facing up
+	jmp pr04a
+
+
+pr04	jsr faced	;enter level when facing down
+pr04a	ldx t2	;move to new level
+	lda #$00
+	jsr newlev
+	jmp setstnd	;set standing mode & exit
+
+
+pr05	lda #$00	;move dynamically to top-left of new level
+	db $2c
+
+
+pr10	lda #$01	;move dynamically to top-right of new level
+	db $2c
+
+
+pr06	lda #$ff	;move dynamically to bottom-left of new level
+	sta t3
+
+	pushbnk 6	;bank in level handling code
+	bnk 6,#$0
+
+	lda #$ff	;set no main level stored
+	sta levsav
+	lda t3
+	pha
+	lda curlev	;set last level
+	sta oldlev
+	lda t2	;set new level
+	sta curlev
+	sta lastgame
+	jsr convind	;& level index
+	stx curlevind
+	jsr initlev	;set level ptrs 
+	pla		;init level
+	jsr putlev
+	jsr setad	;set rest of level ptrs
+
+	lda #$80	;display current righthand column/bottom row
+	ldx oldlev
+	ldy curlev
+	cpx #$50
+	bne !a
+	cpy #$51
+	bne !a
+	sta svecy
+!a	cpx #$51
+	bne !b
+	cpy #$52
+	bne !b
+	sta svecx
+
+!b	ldx #$03	;save OLD map x,y
+!c	lda mapx,x
+	sta t0,x
+	dex
+	bpl !c
+	jsr setmapxy	;set NEW map x,y
+	ldx #$02	;calc x,y offset required
+!d	lda mapx,x	;to maintain scn positions
+	sec		;of obs/bullets on new level
+	sbc t0,x
+	sta t0,x
+	lda mapx+1,x
+	sbc t0+1,x
+	sta t0+1,x
+	dex
+	dex
+	bpl !d
+
+	popbnk 6
+
+	ldx #pi	;transform active object x,y posns
+!e	lda obtyp,x
+	bmi !f
+	lda t0
+	clc
+	adc obxl,x
+	sta obxl,x
+	lda t1
+	adc obxh,x
+	sta obxh,x
+	lda t2
+	clc
+	adc obyl,x
+	sta obyl,x
+	lda t3
+	adc obyh,x
+	sta obyh,x
+	lda t0
+	clc
+	adc obxorgl,x
+	sta obxorgl,x
+	lda t1
+	adc obxorgh,x
+	sta obxorgh,x
+	lda t2
+	clc
+	adc obyorgl,x
+	sta obyorgl,x
+	lda t3
+	adc obyorgh,x
+	sta obyorgh,x
+!f	dex
+	bpl !e
+
+	ldx #maxb-1	;transform active bullet x,y posns & jump
+!g	lda bulsp,x
+	bmi !h
+	lda t0
+	clc
+	adc bulxorgl,x
+	sta bulxorgl,x
+	lda t1
+	adc bulxorgh,x
+	sta bulxorgh,x
+	lda t2
+	clc
+	adc bulyorgl,x
+	sta bulyorgl,x
+	lda t3
+	adc bulyorgh,x
+	sta bulyorgh,x
+!h	dex
+	bpl !g
+	rts
+
+
+pr07	jsr faceu	;enter shop when facing up
+	ldy t2	;set shop etc. no.
+	sty shopdat
+	cpy #$0d	;handle tchests
+	bcc !a
+	ldy #$0d
+!a	ldx shoplev,y	;set level to use
+	lda #$07
+	jmp newlev
+
+
+pr08	lda t2	;enter maze level up/down
+	cmp #$f0
+	bcs !1
+	inc uflg	;flag no interaction if plr below upper exit
+!1	and #$0f
+	eor #$0f
+	beq !2
+	sta dflg	;flag no searching if plr above lower exit
+!2	lda obstat+pi
+	and #$03	;wait till facing u/d
+	lsr a
+	beq pr08a
+	lda t2	;get 2 packed levels
+	ldx ud	;get stick u/d
+	bcs !a
+	bpl pr08a	;handle up
+	ldx curlev	;up on $a7 > dungeon
+	cpx #$a7
+	bne !0
+	jmp pr00 
+!0	lsr a
+	lsr a
+	lsr a
+	lsr a
+	bpl !b
+!a	dex		;handle down
+	bne pr08a
+	and #$0f
+!b	cmp #$0f	;$F=no exit in this dir
+	beq pr08a
+	ora #$a0	;maze levels are $A0..$AE
+	tax		;move to new level
+	lda #$00
+	jmp newlev
+pr08a	rts
+
+
+pr09	ldy ud	;handle hollow tree
+	dey		;wait for down
+	bne pr08a
+	inc serflg	;stop searching
+	jsr flag1	;only once
+	lda #$0f	;dragons egg
+	jsr addinv
+	lda #$48	;YOU WHAT spell
+	jsr addinv
+	sfx 18	;sfx
+	ldx #$06	;msg
+	jmp addcmsg
+
+
+pr0a	ldx curob	;handle forest pool
+	cpx #$13	;holy water dropped?
+	bne !a
+	lda #pool	;yes, flag it
+	ora tmpflag
+	sta tmpflag
+	jsr setop	;delete holy water
+	jsr delinv
+	ldx #$05	;msg
+	jsr addcmsg
+	ldx curob
+!a	txa		;handle filling flask
+	bne !z
+	lda #pool
+	and tmpflag
+	beq !z
+	jmp pr0da
+!z	rts		;handle forest pool
+
+
+pr0b	jsr get4	;handle snake/sphinx multi-response
+	lsr a
+	bne !b
+	bcs !a
+
+	sta aind	;clear answer index
+	jsr faceu	;wait till plr tries door
+	stx t0
+	lda #$01	;update flag
+	jsr set4
+	sfx 16	;sfx
+	ldx t2
+	lda pr0cc,x	;set answer index
+	sta cind
+	cpx #$03
+	bcc !1
+
+	lda #$80	;trigger sphinx
+	sta t4
+	sta t6
+	asl a
+	sta t5
+	sta t7
+	ldx #$03	;msgs
+	jsr addcmsg
+	lda #$04
+	ldx #$13
+	jsr addmsg
+	ldx #$04
+	jsr addcmsg
+	lda #$28
+	bpl !0
+
+!1	lda obxl+pi	;trigger snake
+	adc #$1c
+	sta t4
+	lda obxh+pi
+	adc #$00
+	sta t5
+	lda #<$007a
+	sta t6
+	lda #>$007a
+	sta t7
+	ldx #$12	;msgs
+	jsr addcmsg
+	ldx #$13
+	jsr addcmsg
+	ldx #$14
+	jsr addcmsg
+	lda #$07
+!0	jsr actob
+	lda #%10111000
+	sta ctrl
+	lda #$01	;set plr facing right
+	jmp setstnda
+
+!a	rts		;exit
+
+!b	ldx t2	;enter/leave level when snake/sphinx solved
+	lda pr0cb,x
+	sta t2
+	and #$0f
+	bne !c
+	jsr faceu
+	jmp pr00	;map
+!c	jmp pr03	;normal
+
+pr0cb	hex 42 43 50 80	;correct level
+pr0cc	hex 01 02 00 02	;correct answer
+
+
+pr0c	lda obmaflg+pi	;handle weak floor - iron boots on?
+	lsr a
+	lsr a
+	and #$03
+	cmp #$02
+	bne dwb
+	sta weakflg	;yes, break floor
+	beq dw0
+doweak	lda curlev	;if level=5.0 & weak floor not broken
+	cmp #$50
+	bne dwb
+dw2	lda #$38
+	ldx weakflg
+	beq dw1
+dw0	lda #$fe
+dw1	swapstk 0,1	;print floor
+	ldx #$04
+dwa	pha
+	eor #$01
+	dex
+	bne dwa
+	lda #$04
+	pha
+	lda #<$26f4
+	pha
+	lda #>$26f4
+	pha
+	lda #tok3
+	pha
+	swapstk 1,0
+dwb	rts
+
+
+pr0d	jsr faceu	;handle filling flask
+pr0da	lda #$05
+	sta drinks
+	ldx #$15
+	jmp miscmsg
+
+
+pr0e	inc debug
+	rts		;handle fire bridge
+
+
+pr0f	lda ud	;enter new level if joystick up
+	bpl !a	;used for flying up to a new level
+	ldx t2
+	lda #$00
+	jmp newlev
+!a	rts
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	;
+	;Exit if object flag state is > 0
+	;IN :X=event flag no.
+	;OUT:X=event data
+	;
+flag1	jsr get4	;test flag
+	bne !a	;=0?
+	lda #$01	;yes, update flag
+	jsr set4
+	ldx t2	;restore X & exit
+	rts
+!a	pla		;exit
+	pla
+	rts
+
+
+	;
+	;Check if plr wants to move l/r/u/d to a new level
+	;
+faced	lda #$03	;plr going down?
+	sta dflg	;flag no searching
+	bne face
+faceu	lda #$02	;plr going up?
+	sta uflg	;flag no interaction
+	bne face
+facer	lda #$01	;plr going right?
+	db $2c
+facel	lda #$00	;plr going left?
+face	sta t0
+	lsr a
+	tay
+	lda obstat+pi	;plr facing required direction?
+	and #$03
+	eor t0
+	bne !b
+	lda #$ff
+	bcc !a
+	lda #$01
+!a	eor lr,y	;yes, joystick held in that direction?
+	beq !c
+!b	pla
+	pla
+!c	rts
+
+
+
+shoplev	hex d2 d5 d0 d5 d3 d1 d4 d6 d0 d4 d1 d4 d3	d7 ;shop data
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+	;
+	;Handle any scn-position triggered events
+	;
+scnevents	clc
+	lda #$f8
+
+	bit hvflag	;horiz level?
+	bmi !a1
+
+	and mapx	;yes, set horiz test pos
+	ldy scnxv
+	beq !z
+	bmi !r0
+	adc #$20	;scn moving left
+	db $2c
+!r0	adc #$e0	;scn moving right
+	sta t10
+	tya
+	adc mapx+1
+	jmp !a3
+
+!a1	and mapy	;yes, set vert test pos
+	ldy scnyv
+	beq !z
+	bmi !r1
+	dey		;scn moving up
+	adc #$d0
+	db $2c
+!r1	adc #$e0	;scn moving down
+	sta t10
+	tya
+	adc mapy+1
+!a3	sta t11
+
+	pushbnk 6
+	bnk 6,#bev
+
+	ldy curlevind	;for this level
+	bne !a4	;victory has special data
+	lda vicflg
+	beq !a4
+	ldy #gameind
+!a4	lda stl,y	;set ptr to scn-triggered event data
+	sta t4
+	lda sth,y
+	sta t5
+	ldx stbas,y	;get plr-triggered event flag base
+
+	ldy #$00
+!b	lda (t4),y	;x/y-check data
+	cmp #$81	;$81=end of data
+	beq !d
+	iny
+	cmp t11
+	bne !c
+	lda (t4),y
+	cmp t10
+	beq !e
+!c	inx		;inc event flag no.
+	iny		;& check next event data
+	iny
+	iny
+	bne !b
+!d	popbnk 6	;exit - nothing triggered
+!z	rts
+
+!e	bit obtyp+2	;do not trigger object if already active
+	bmi !e0
+	cpx obeno+2
+	beq !d
+!e0	bit obtyp+1
+	bmi !e1
+	cpx obeno+1
+	beq !d
+!e1	bit obtyp
+	bmi !e2
+	cpx obeno
+	beq !d
+
+!e2	iny
+	lda (t4),y
+	sta t2
+	iny
+	lda (t4),y	;get scn-triggered event type
+	sta t3
+	and #$1f
+	tay
+	lda trvl,y	;set jump vector to handling code
+	sta t4
+	lda trvh,y
+	sta t5
+
+	popbnk 6	;restore bank
+
+	lda t2	;A/T2=scn-triggered event data
+	stx t8
+	jmp (t4)	;X/T8=event flag no.
+
+
+	;trigger handling vectors
+trvl	dl tr00,tr01,tr02,tr03,tr04,tr05,tr06,tr07
+	dl tr08,tr09,tr0a,tr0b,tr0c,tr0d,tr0e,tr0f
+	dl tr10,tr11,tr12,tr13,tr14,tr15,tr16,tr17
+	dl tr18
+trvh	dh tr00,tr01,tr02,tr03,tr04,tr05,tr06,tr07
+	dh tr08,tr09,tr0a,tr0b,tr0c,tr0d,tr0e,tr0f
+	dh tr10,tr11,tr12,tr13,tr14,tr15,tr16,tr17
+	dh tr18
+
+
+	;trigger msg
+tr00	jsr flag1	;trigger once only
+	jmp addcmsg	;add msg & exit
+
+
+	;set guidance msg
+tr07	jsr flag1
+	stx help
+	rts
+
+
+	;trigger treasure chest
+tr02	lda t2	;extract chest no.
+	lsr a
+	lsr a
+	clc		;translate to room-triggered chest
+	adc #choff0
+	pha
+	lda t2	;set x/y-index
+	and #$03
+	sta t2
+	ldx #$23	;activate chest
+	jsr setobp
+	pla		;if ob was activated,save chest no.
+	bcc !a
+	sta obchest,x	;use anim org timing as chest doesn't need it
+!a	rts
+
+
+	;trigger non-specialised object
+tr01	ldx t2
+	cpx #$06	;talking tree
+	beq !a
+	cpx #$19	;wise man
+	bne setobp
+!a	lda #%00111100	;both have special interaction
+	sta t2
+	bcs setobp
+
+	;trigger stalagmite
+tr03	ldx #$13
+	bpl setobp
+
+
+	;trigger barbarian
+tr04	ldx #$0f
+	bpl setobp
+
+
+	;trigger adventurer
+tr05	ldx #$10
+	bpl setobp
+
+
+	;trigger monk
+tr06	ldx #$11
+	bpl setobp
+
+
+	;trigger wizard
+tr08	ldx #$01
+	bpl setobp
+
+
+	;trigger spectre
+tr09	ldx #$0c
+	bpl setobp
+
+
+	;trigger demon
+tr0a	ldx #$20
+	bpl setobp
+
+
+	;trigger troll
+tr0b	ldx #$09
+	bpl setobp
+
+
+	;trigger beholder
+tr0c	ldx #$12
+	bpl setobp
+
+
+	;trigger spider
+tr0d	ldx #$1c
+	bpl setobp
+
+
+	;trigger werebat
+tr0e	ldx #$15
+	bpl setobp
+
+
+	;trigger venworm
+tr0f	ldx #$16
+	bpl setobp
+
+
+	;trigger rat
+tr10	ldx #$1e
+	bpl setobp
+
+
+	;trigger winged serpent
+tr11	ldx #$14
+	bpl setobp
+
+
+	;trigger armour
+tr12	ldx #$18
+	bpl setobp
+
+
+	;trigger skeleton
+tr13	ldx #$1a
+	bpl setobp
+
+
+	;trigger pendulum
+tr14	ldx #$25
+	bpl setobp
+
+
+	;trigger rock monster
+tr15	ldx #$21
+	bpl setobp
+
+
+	;trigger stoneman
+tr16	ldx #$1d
+	bpl setobp
+
+
+	;trigger vines
+tr17	ldx #$0e
+	bpl setobp
+
+
+	;trigger turtle
+tr18	lda #$0b	;any other turtles on?
+	jsr obscan
+	bmi !b
+	txa		;yes, trying to activate same one?
+	cmp obeno,y
+	bne !a
+	rts		;yes, don't
+!a	lda #$ff	;no, delete old turtle
+	sta obtyp,y
+!b	lda t2	;set turtle no.
+	sta turt
+	ldx #$0b	;set x,y
+	bne actobxy
+
+
+	;
+	;Extract object parameters from data prior to activation
+	;IN:X=ob type, T2=data
+	;
+setobp	lda t2	;set x/y index
+	and #$03
+	sta t4
+	lda curlevind
+	asl a
+	asl a
+	ora t4
+	tay
+	lda obxyst,y
+	sta t12
+	lda t2	;set interaction msg
+	lsr a
+	lsr a
+	and #$0f
+	bne !a	;0 = rnd(0..3)
+	lda rn
+	and #$03
+!a	sta ta
+
+
+	;
+	;Set object x,y start position & activate it
+	;IN:X=ob type, T10/T11=ob x/y-pos, T12=alt. x/y-pos
+	;
+actobxy	sec
+	lda t10
+	ldy #$00
+	bit hvflag
+	bmi !a
+	sta t4	;horiz level - set x
+	lda t11
+	sta t5
+	lda t12	;set y
+	sbc obyr,x
+	sta t6
+	sty t7
+	bcs !b
+!a	sta t6	;vert level - set y
+	lda t11
+	sta t7
+	lda t12	;set x
+	sbc obxr,x
+	sta t4
+	sty t5
+!b	txa		;try to activate ob
+	jsr actob
+	bcc !c
+
+	lda t2	;set object movement limits
+	asl a
+	rol a
+	rol a
+	and #$03
+	sta t2
+	lda t3
+	lsr a
+	lsr a
+	lsr a
+	lsr a
+	lsr a
+	ora t2
+	sta t2
+	lda curlevind
+	asl a
+	asl a
+	ora t2
+	tay
+
+	sec
+	lda obxl,x
+	sbc movminx,y
+	sta obminxl,x
+	lda obxh,x
+	sbc #$00
+	sta obminxh,x
+	clc
+	lda obxl,x
+	adc movmaxx,y
+	sta obmaxxl,x
+	lda obxh,x
+	adc #$00
+	sta obmaxxh,x
+	sec
+	lda obyl,x
+	sbc movminy,y
+	sta obminyl,x
+	lda obyh,x
+	sbc #$00
+	sta obminyh,x
+	clc
+	lda obyl,x
+	adc movmaxy,y
+	sta obmaxyl,x
+	lda obyh,x
+	adc #$00
+	sta obmaxyh,x
+
+!c	rts
+
+
+movminx	hex 80
+movmaxx	hex 80
+
+movminy	hex 80
+movmaxy	hex 80
+
+

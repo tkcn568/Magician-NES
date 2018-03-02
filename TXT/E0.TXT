@@ -1,0 +1,14 @@
+
+inv/spell/map E.?
+-----------------
+
+00 "this is the land of merlwood. your quest will be hard and hazardous, filled with magic and epic battles. good luck.."
+01 "you leave the village of serenna and begin your quest.."
+02 "you leave the wilderness and as dusk falls you reach the lakes.."
+03 "after crossing the lakes a short walk brings you to merl forest.."
+04 "taking the correct door leads you into the cold, unfriendly depths of mount vunar.."
+05 "you progress deeper into abadon's domain."
+06 "you battle your way into the dungeons."
+07 "you manage to reach abadon's castle."
+08 "you reach the base of abadon's tower."
+09 "you stand atop abadon's tower, face to face with the dark wizard himself!"

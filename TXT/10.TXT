@@ -1,0 +1,10 @@
+
+town 1.?
+--------
+
+00 "the sweet smell of ale wafts past your nose."
+01 "you feel at home as you pass the familiar houses of serenna."
+02 "the sound of organ music can be heard coming from inside the church."
+03 "the riotous sounds of merry-making can be heard from inside the pub."
+04 "news of your victory travels fast, and as you return to your village, a heroes welcome awaits you!     peace is once more restored to merlwood."
+05 "         the end..?"

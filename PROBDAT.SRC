@@ -1,0 +1,851 @@
+
+
+	;
+	;Objects:-
+	;H : trigger_x = ob_x : ob_y=level y-ob chr height/2
+	;V : trigger_y = ob_y : ob_x=level y-ob chr width/2
+	;
+
+
+	;
+	;Messages:-
+	;H : trigger_x = msg_x + $120 (msg_x=mapx)
+	;V : trigger_y = msg_y + $d0  (msg_y=mapy)
+	;
+
+
+	;
+	;Plr-position trigger info :-
+	;
+pt_dmap	equ $00	;+level : display map pointing at new level
+pt_left	equ $01	;+level : enter level when facing left
+pt_rigt	equ $02	;+level : enter level when facing right
+pt_uppp	equ $03	;+level : enter level when facing up
+pt_down	equ $04	;+level : enter level when facing down
+pt_dyn0	equ $05	;+level : move dynamically to top-left of level
+pt_dyn1	equ $06	;+level : move dynamically to bot-left of level
+pt_shop	equ $07	;+shop  : enter shop when facing up
+pt_maze	equ $08	;+2levs : goto maze level (hi nyb=up,lo=down)
+pt_tree	equ $09	;handle hollow tree
+pt_holy	equ $0a	;handle forest pool
+pt_mult	equ $0b	;+ind   : trigger multi response object
+pt_weak	equ $0c	;handle weak floor
+pt_fill	equ $0d	;handle filling flask
+pt_fire	equ $0e	;handle fire bridge
+pt_upex	equ $0f	;+level : enter new level if joystick up
+pt_dyn2	equ $10	;+level : move dynamically to top-right of level
+
+	;data byte format :-
+	;
+	;used as required by trigger type
+	;
+
+
+	;
+	;Screen-position trigger info :-
+	;
+st_msg	equ $00	;trigger msg
+st_obj	equ $01	;general object
+st_che	equ $02	;chest
+st_sta	equ $03	;stalagmite
+st_bar	equ $04	;barbarian
+st_adv	equ $05	;adventurer
+st_mon	equ $06	;monk
+st_gid 	equ $07	;guidance
+st_wiz	equ $08	;wizard
+st_spc	equ $09	;spectre
+st_dmn	equ $0a	;demon
+st_trl	equ $0b	;troll
+st_beh	equ $0c	;beholder
+st_spi	equ $0d	;spider
+st_wer	equ $0e	;weirbat
+st_ven	equ $0f	;venworm
+st_rat	equ $10	;rat
+st_wng	equ $11	;winged serpent
+st_arm	equ $12	;armour
+st_skl	equ $13	;skeleton
+st_pen	equ $14	;pendulum
+st_rok	equ $15	;rock monster
+st_sto	equ $16	;stone man
+st_vin	equ $17	;vines
+st_tur	equ $18	;turtle
+
+
+	;type byte format :-
+	;
+	;type/movement	:76543210
+	;		:MMMTTTTT
+	;		:T = event type 00..1F
+	;		:M = movement control
+
+	;data byte format :-
+	;
+	;messages	:msg 00..FF
+	;general objects	:obj 00..FF
+	;chests	:76543210
+	;		:CCCCCCPP
+	;		:P = chest x/y-positioning index 0..3
+	;		:C = chest no. 00..3F
+	;specific objects	:76543210
+	;		:MMIIIIPP
+	;		:P = object x/y-positioning index 0..3
+	;		:I = interaction msg 0..F
+	;		:M = movement control 0..3
+
+	;1.0	town
+pt10	itr
+	pti 10
+	pt 00c8,0070,0018,0040,pt_shop,00
+	pt 05b8,0070,0018,0040,pt_shop,01
+	pt 0698,0070,0018,0040,pt_shop,02
+	pt 08a8,0070,0018,0040,pt_shop,03
+	pt 0a68,0070,0020,0040,pt_shop,04
+	pt 0c28,0070,0018,0040,pt_shop,05
+	pt 0d18,0070,0018,0040,pt_shop,06
+	pt 0ea8,0000,0020,00b0,pt_dmap,20
+	e
+st10	sti 10
+	st 0128,st_msg,$00
+	st 0150,st_adv,$00,$00,$00	;adventurer
+	st 02f8,st_msg,$01
+	st 0800,st_bar,$00,$00,$00	;barbarian
+	st 0a88,st_gid,$01
+	st 0a90,st_msg,$02
+	st 0c68,st_gid,$00
+	st 0c70,st_msg,$03
+	st 0e80,st_bar,$00,$00,$00	;barbarian
+	e
+
+
+	;2.0	wilderness
+pt20	itr
+	pti 20
+	pt 0248,0070,0020,0040,pt_tree,00
+	pt 0858,0070,0020,0040,pt_shop,07	;hidden
+	pt 0c88,0070,0030,0040,pt_uppp,21
+	pt 0fd8,0000,0020,00b0,pt_dmap,30
+	e
+st20	sti 20
+	st 0000,st_msg,$00
+	st 0008,st_gid,$02
+	st 0080,st_mon,$00,$00,$00	;monk
+	st 0440,st_gid,$00
+	st 04b0,st_msg,$01
+	st 0560,st_gid,$03
+	st 0568,st_msg,$04
+	st 05d8,st_obj,$2a,$00,$00	;statue of wizard
+	st 0720,st_gid,$00
+	st 0760,st_wiz,$00,$00,$00	;wizard
+	st 0858,st_gid,$05
+	st 08c8,st_msg,$02
+	st 0968,st_gid,$00
+	st 0980,st_adv,$00,$00,$00	;adventurer
+	st 0dd8,st_gid,$06
+	st 0de0,st_msg,$03
+	st 0e58,st_obj,$0d	;marsh gas
+	st 0fc8,st_obj,$02	;spitting plant
+	e
+
+	;2.1	well
+pt21	pti 21
+	pt 0040,0010,0080,0030,pt_upex,20
+	e
+st21	sti 21
+	st 0000,st_gid,$07
+	st 0030,st_msg,$05
+	st 0198,st_che,$00,$00	;chest 0
+	e
+
+
+	;3.0	lake
+pt30	itr
+	pti 30
+	pt 0388,0060,0020,0040,pt_shop,08
+	pt 0448,0060,0020,0040,pt_shop,09
+	pt 0688,0060,0020,0040,pt_shop,0a
+	pt 13d8,0000,0020,00b0,pt_dmap,40
+	e
+st30	sti 30
+	st 0000,st_msg,$00
+	st 00b0,st_adv,$00,$00,$00	;adventurer
+	st 0130,st_gid,$08
+	st 0138,st_obj,$03	;boatman
+	st 0228,st_msg,$02
+	st 02c8,st_gid,$00
+	st 0378,st_msg,$04
+	st 0420,st_bar,$00,$00,$00	;barbarian
+	st 0628,st_bar,$00,$00,$00	;barbarian
+	st 0690,st_msg,$06
+	st 0888,st_gid,$09
+	st 0890,st_msg,$03
+	st 08b8,st_spc,$01,$00,$00	;spectre
+	st 0930,st_tur,$00	;turtle
+	st 0a70,st_spc,$02,$00,$00	;spectre
+	st 0ad0,st_spc,$01,$00,$00	;spectre
+	st 0c98,st_tur,$01	;turtle
+	st 0ca0,st_spc,$02,$00,$00	;spectre
+	st 0e20,st_spc,$01,$00,$00	;spectre
+	st 10a8,st_tur,$02	;turtle
+	st 10c0,st_spc,$03,$00,$00	;spectre
+	st 1270,st_tur,$03	;turtle
+	st 13b0,st_spc,$03,$00,$00	;spectre
+	st 1400,st_msg,$05
+	e
+
+
+	;4.0	forest
+pt40	itr
+	pti 40
+	pt 05c8,0060,0020,0050,pt_shop,0b
+	pt 0810,0008,0040,00a0,pt_holy,00
+	pt 0b38,0060,0020,0050,pt_shop,0c
+	pt 1148,0060,0020,0050,pt_uppp,41
+	pt 12f0,0050,0020,0050,pt_mult,00	;snakes
+	pt 1340,0050,0020,0050,pt_mult,01
+	pt 1390,0050,0020,0050,pt_mult,02
+	e
+st40	sti 40
+	st 0000,st_msg,$00
+	st 0170,st_mon,$03,$00,$00	;monk
+	st 02f0,st_msg,$01
+	st 0430,st_obj,$05	;mushroom
+	st 0518,st_wiz,$03,$00,$00	;wizard
+	st 05f8,st_msg,$03
+	st 06e8,st_spc,$01,$00,$00	;spectre
+	st 0720,st_spc,$02,$00,$00	;spectre
+	st 0860,st_gid,$0a
+	st 0868,st_msg,$04
+	st 0900,st_gid,$00
+	st 0948,st_mon,$03,$00,$00	;monk
+	st 0a40,st_dmn,$01,$00,$00	;demon
+	st 0b58,st_gid,$01
+	st 0b60,st_msg,$06
+	st 0c38,st_vin,$00	;vine
+	st 0c78,st_vin,$00	;vine
+	st 0c90,st_gid,$00
+	st 0d70,st_adv,$03,$00,$00	;adventurer
+	st 0ea0,st_dmn,$02,$00,$00	;demon
+	st 0fc0,st_obj,$06	;talking tree
+	st 0fd8,st_msg,$07
+	st 10a0,st_gid,$00
+	st 10b0,st_trl,$03,$00,$00	;troll
+	st 1178,st_msg,$03
+	st 1320,st_gid,$0c
+	e
+
+	;4.1	beggar room
+pt41	pti 41
+	pt 0068,0070,0028,0038,pt_down,40
+	e
+st41	sti 41
+	st 0000,st_gid,$0d
+	st 0008,st_msg,$0c
+	st 0028,st_obj,$08	;beggar
+	e
+
+	;4.2	troll room
+pt42	pti 42
+	pt 0068,0070,0028,0038,pt_down,40	
+	e
+st42	sti 42
+	st 00b8,st_trl,$00,$00,$00	;troll/chest 1
+	e
+
+	;4.3	treasure room
+pt43	pti 43
+	pt 0068,0060,0028,0038,pt_down,40
+	e
+st43	sti 43
+	st 00d0,st_che,$00,$02	;chest 2
+	e
+
+
+	;5.0	cavern 1 (horiz)
+pt50	itr
+	pti 50
+	pt 0188,0070,0030,0030,pt_dyn0,51
+	pt 0198,0040,0020,0040,pt_weak,00
+	e
+st50	sti 50
+	st 0000,st_msg,$00
+	st 01a8,st_gid,$0e
+	st 01b0,st_msg,$01
+	e
+
+	;5.1	cavern 2 (verti)
+pt51	pti 51
+	pt 0000,0000,0088,0080,pt_dyn2,50
+	pt 0088,0300,0078,0078,pt_dyn0,52
+	e
+st51	sti 51
+	st 0128,st_gid,$00
+	st 0138,st_che,$00,$03	;chest 3
+	st 01e8,st_che,$01,$04	;chest 4
+	st 0298,st_che,$02,$05	;chest 5
+	st 0358,st_sta,$03	;stalagmite
+	st 03d0,st_msg,$02
+	e
+
+	;5.2	cavern 3 (horiz)
+pt52	pti 52
+	pt 0010,0010,0060,0040,pt_dyn1,51
+	pt 0288,0060,0020,0040,pt_uppp,53
+	pt 0498,0060,0020,0040,pt_uppp,54
+	pt 0678,0060,0020,0040,pt_uppp,f0
+	;pt 0860,0060,0020,0040,pt_sear,00
+	pt 0898,0060,0020,0040,pt_uppp,56
+	pt 09e0,0000,0020,00b0,pt_rigt,aa	;maze
+	e
+st52	sti 52
+	st 0140,st_msg,$03
+	st 0178,st_wer,$01,$00,$00	;weirbat
+	st 01d8,st_wer,$02,$00,$00	;weirbat
+	st 02a0,st_beh,$03,$00,$00	;beholder
+	st 03a8,st_sto,$00,$00,$00	;stoneman
+	st 04b0,st_skl,$00,$00,$00	;skeleton
+	st 0570,st_adv,$00,$00,$00	;adventurer
+	st 0668,st_beh,$03,$00,$00	;beholder
+	st 06c8,st_beh,$02,$00,$00	;beholder
+	st 0858,st_spc,$01,$00,$00	;spectre
+	st 08a0,st_spc,$01,$00,$00	;spectre
+	st 08a8,st_msg,$03
+	st 09e8,st_spi,$00,$00,$00	;spider
+	e
+
+	;5.3	dragon room
+pt53	pti 53
+	pt 0000,0000,0010,00a0,pt_left,52
+	e
+st53	sti 53
+	st 00a8,st_obj,$17	;little dragon
+	e
+
+	;5.4	statue room
+pt54	pti 54
+	pt 0000,0000,0010,00a0,pt_left,52
+	e
+st54	sti 54
+	st 0000,st_obj,$27	;statue/chest 6
+	e
+
+	;5.5	subgame
+pt55	pti 55
+	pt 0068,0060,0028,0038,pt_down,52
+	e
+st55	sti 55
+	st 00a8,st_che,$00,$07	;chest 7
+	e
+
+	;5.6	old lady room
+pt56	pti 56
+	pt 0068,0070,0028,0038,pt_down,52
+	e
+st56	sti 56
+	st 0030,st_obj,$0a	;old woman
+	e
+
+
+	;6.0	dungeon
+pt60	itr
+	pti 60
+	pt 0168,0070,0030,0040,pt_uppp,61
+	pt 0268,0070,0030,0040,pt_uppp,f1
+	pt 0368,0070,0030,0040,pt_uppp,63
+	pt 0468,0070,0030,0040,pt_uppp,f2
+	pt 0568,0070,0030,0040,pt_uppp,65
+	pt 0668,0070,0030,0040,pt_uppp,66
+	pt 06f8,0070,0020,0040,pt_fill,00
+	pt 0768,0070,0030,0040,pt_uppp,f3
+	pt 0868,0070,0030,0040,pt_uppp,f4
+	pt 0998,0070,0020,0040,pt_fill,00
+	pt 0a58,0070,0020,0040,pt_fill,00
+	pt 0c78,0070,0020,0040,pt_uppp,69	;hidden
+	pt 10e8,0070,0030,0040,pt_dmap,70
+	e
+st60	sti 60
+	st 0000,st_msg,$00
+	st 01c0,st_msg,$01
+	st 0200,st_rat,$00,$00,$00	;rat
+	st 0300,st_ven,$00,$00,$00	;venworm
+	st 0388,st_spc,$01,$00,$00	;spectre
+	st 0430,st_spc,$02,$00,$00	;spectre
+	st 0510,st_skl,$00,$00,$00	;skeleton
+	st 0680,st_wiz,$00,$00,$00	;wizard
+	st 0728,st_gid,$11
+	st 0810,st_dmn,$01,$00,$00	;demon
+	st 0850,st_dmn,$02,$00,$00	;demon
+	st 0988,st_skl,$00,$00,$00	;skeleton
+	st 0b60,st_beh,$01,$00,$00	;beholder
+	st 0bc0,st_beh,$02,$00,$00	;beholder
+	st 0c00,st_gid,$00
+	st 0ca0,st_gid,$05
+	st 0dc8,st_gid,$00
+	st 0e10,st_wng,$03,$00,$00	;winged serpent
+	st 10f0,st_obj,$24	;slab
+	st 10f8,st_gid,$12
+	e
+
+	;6.1	venworm room
+pt61	pti 61
+	pt 0068,0070,0028,0038,pt_down,60
+	e
+st61	sti 61
+	st 00c0,st_trl,$00,$00,$00	;troll/chest 0b
+	e
+
+	;6.2	subgame
+pt62	pti 62
+	pt 0068,0060,0028,0038,pt_down,60
+	e
+st62	sti 62
+	st 0050,st_che,$00,$0c	;chest 0c
+	e
+
+	;6.3	armour room
+pt63	pti 63
+	pt 0068,0060,0028,0038,pt_down,60
+	e
+st63	sti 63
+	st 0050,st_arm,$00,$00,$00	;armour/chest 0d
+	st 00b0,st_arm,$00,$00,$00
+	e
+
+	;6.4	subgame
+pt64	pti 64
+	pt 0068,0060,0028,0038,pt_down,60
+	e
+st64	sti 64
+	st 00e0,st_che,$00,$0e	;chest 0e
+	e
+
+	;6.5	rat room
+pt65	pti 65
+	pt 0068,0060,0028,0038,pt_down,60
+	e
+st65	sti 65
+	st 00c0,st_rat,$00,$00,$00	;rat/chest 0f
+	e
+
+	;6.6	winged serpent room
+pt66	pti 66
+	pt 0068,0070,0028,0038,pt_down,60
+	e
+st66	sti 66
+	st 0068,st_wng,$01,$00,$00	;winged serpents/chest 10
+	st 00d8,st_wng,$02,$00,$00
+	e
+
+	;6.7	subgame
+pt67	pti 67
+	pt 0068,0060,0028,0038,pt_down,60
+	e
+st67	sti 67
+	st 0070,st_che,$00,$11	;chest 11
+	e
+
+	;6.8	subgame
+pt68	pti 68
+	pt 0068,0060,0028,0038,pt_down,60
+	e
+st68	sti 68
+	st 00b8,st_che,$00,$12	;chest 12
+	e
+
+	;6.9	wise man room
+pt69	pti 69
+	pt 0068,0070,0028,0038,pt_down,60
+	e
+st69	sti 69
+	st 00a8,st_obj,$19	;wise man
+	e
+
+
+	;7.0	labarynth 1
+pt70	itr
+	pti 70
+	pt 0188,0060,0020,0050,pt_uppp,76	;hidden
+	pt 0568,0060,0020,0050,pt_uppp,71
+	pt 0628,0060,0020,0050,pt_uppp,72
+	e
+st70	sti 70
+	st 0000,st_msg,$00
+	st 0030,st_arm,$01,$00,$00	;armour
+	st 00a8,st_arm,$01,$00,$00	;armour
+	st 01a0,st_gid,$13
+	st 01a8,st_pen,$00	;pendulum
+	st 02a0,st_skl,$01,$00,$00	;skeleton
+	st 02f0,st_skl,$00,$00,$00	;skeleton
+	st 0490,st_arm,$01,$00,$00	;armour
+	st 04d0,st_arm,$01,$00,$00	;armour
+	st 06a8,st_ven,$01,$00,$00	;venworm	
+	e
+
+	;7.1	labarynth 2
+pt71	pti 71
+	pt 0288,0060,0020,0050,pt_uppp,74
+	pt 0308,0060,0020,0050,pt_uppp,75
+	pt 0388,0060,0020,0050,pt_uppp,76
+	e
+st71	sti 71
+	st 0120,st_trl,$00,$00,$00	;troll
+	st 0178,st_skl,$01,$00,$00	;skeleton
+	st 02e0,st_spc,$02,$00,$00	;spectre
+	st 0360,st_spc,$02,$00,$00	;spectre
+	e
+
+	;7.2	labarynth 3
+pt72	pti 72
+	pt 0108,0060,0020,0050,pt_uppp,71
+	e
+st72	sti 72
+	st 0098,st_skl,$00,$00,$00	;skeleton
+	st 0190,st_che,$01,$0e	;chest 14
+	e
+
+	;7.3	labarynth 4
+pt73	pti 73
+	pt 0048,0060,0030,0050,pt_mult,03	;sphinx
+	e
+st73	sti 73
+	st 0000,st_msg,$02
+	e
+
+	;7.4	labarynth 5
+pt74	pti 74
+	pt 0238,0060,0020,0050,pt_uppp,75
+	e
+st74	sti 74
+	st 00c8,st_pen,$00	;pendulum
+	st 01d8,st_spc,$02,$00,$00	;spectre
+	st 0230,st_che,$01,$0d	;chest 13
+	st 02a8,st_spc,$03,$00,$00	;spectre
+	e
+
+	;7.5	labarynth 6
+pt75	pti 75
+	pt 0488,0060,0020,0050,pt_uppp,76
+	e
+st75	sti 75
+	st 0120,st_skl,$00,$00,$00	;skeleton
+	st 01c0,st_pen,$00	;pendulum
+	st 02f8,st_arm,$00,$00,$00	;armour
+	st 0308,st_arm,$01,$00,$00	;armour
+	st 0430,st_wng,$02,$00,$00	;winged serpent
+	e
+
+	;7.6	labarynth 8
+pt76	pti 76
+	pt 01d0,0000,00a0,00b0,pt_fire,00
+	pt 0270,0000,00a0,00a8,pt_fire,00
+	pt 0428,0060,0020,0050,pt_uppp,70
+	pt 04a8,0060,0020,0050,pt_uppp,73
+	pt 0528,0060,0020,0050,pt_uppp,75
+	e
+st76	sti 76
+	st 0048,st_spc,$02,$00,$00	;spectre
+	st 00d0,st_spc,$03,$00,$00	;spectre
+	st 01b8,st_gid,$14
+	st 0220,st_msg,$01
+	st 0370,st_obj,$1f	;fire elemental
+	st 04a0,st_skl,$00,$00,$00	;skeleton
+	st 0580,st_skl,$00,$00,$00	;skeleton
+	e
+
+
+	;8.0	tower
+pt80	itr
+	pti 80
+	pt 0000,0010,00f0,0030,pt_dmap,90
+	pt 0020,0140,0010,0068,pt_left,86
+	pt 00d0,01d0,0010,0068,pt_rigt,85
+	pt 0020,0260,0010,0068,pt_left,84
+	pt 00d0,02f0,0010,0068,pt_rigt,83
+	pt 0020,0380,0010,0068,pt_left,82
+	pt 00d0,0410,0010,0068,pt_rigt,f5
+	e
+st80	sti 80
+	st 0060,st_wng,$01,$00,$00	;winged serpent
+	st 00e8,st_wng,$03,$00,$00	;winged serpent
+	st 0168,st_wer,$00,$00,$00	;werebat
+	st 0228,st_spc,$01,$00,$00	;spectre
+	st 0298,st_beh,$03,$00,$00	;beholder
+	st 033c,st_dmn,$02,$00,$00	;demon
+	st 0428,st_wng,$01,$00,$00	;winged serpent
+	st 0460,st_msg,$00
+	e
+
+	;8.1	;subgame 6 troom
+pt81	pti 81
+	pt 0068,0060,0028,0038,pt_down,80
+	e
+st81	sti 81
+	st 0050,st_che,$00,$18	;chest 18
+	e
+
+	;8.2	troom 1
+pt82	pti 82
+	pt 0068,0060,0028,0038,pt_down,80
+	e
+st82	sti 82
+	st 00c8,st_che,$00,$15	;chest 15
+	e
+
+	;8.3	spikes
+pt83	pti 83
+	pt 0068,0060,0028,0038,pt_down,80
+	e
+st83	sti 83
+	st 0000,st_obj,$21		;spikes on roof
+	st 0008,st_gid,$0e
+	e
+
+	;8.4	troom 2
+pt84	pti 84
+	pt 0068,0060,0028,0038,pt_down,80
+	e
+st84	sti 84
+	st 00b0,st_che,$00,$16	;chest 16
+	e
+
+	;8.5	fountain
+pt85	pti 85
+	pt 0068,0060,0028,0038,pt_down,80
+	e
+st85	sti 85
+	st 0000,st_obj,$26	;fountain
+	e
+
+	;8.6	final spell
+pt86	pti 86
+	pt 0068,0060,0028,0038,pt_down,80
+	e
+st86	sti 86
+	st 0000,st_obj,$29	;final spell machine
+	st 0008,st_gid,$15
+	e
+
+
+	;9.0	abadons place
+pt90	itr
+	pti 90
+	e
+st90	sti 90
+	st 0000,st_gid,$16
+	st 00c0,st_obj,$22	;abadon
+	e
+
+
+	;a.0	maze
+pta0	itr
+	pti a0
+	pt 0068,0070,0028,0038,pt_maze,a5
+	pt 00e0,0000,0010,00b0,pt_rigt,a1	;hidden
+	e
+sta0	sti a0
+	st 0040,st_skl,$00,$00,$00	;skeleton
+	e
+
+	;a.1
+pta1	pti a1
+	pt 00e0,0000,0010,00b0,pt_rigt,a2
+	e
+sta1	sti a1
+	st 0080,st_che,$00,$08	;chest 08
+	st 00d0,st_beh,$01,$00,$00	;beholder
+	e
+
+	;a.2
+pta2	pti a2
+	pt 0000,0000,0010,00b0,pt_left,a1
+	pt 0068,0070,0028,0038,pt_maze,cf
+	pt 00e0,0000,0010,00b0,pt_rigt,a3
+	e
+sta2	sti a2
+	st 00d0,st_wiz,$00,$00,$00	;wizard
+	e
+
+	;a.3
+pta3	pti a3
+	pt 0000,0000,0010,00b0,pt_left,a2
+	pt 00e0,0000,0010,00b0,pt_rigt,a4
+	e
+sta3	sti a3
+	st 00c0,st_skl,$00,$00,$00	;skeleton
+	st 00d0,st_che,$00,$00	;chest
+	e
+
+	;a.4
+pta4	pti a4
+	pt 0000,0000,0010,00b0,pt_left,a3
+	pt 0068,0070,0028,0038,pt_maze,49
+	pt 00e0,0000,0010,00b0,pt_rigt,a4
+	e
+sta4	sti a4
+	st 0028,st_che,$00,$09	;chest 09
+	e
+
+	;a.5
+pta5	pti a5
+	pt 0068,0070,0028,0038,pt_maze,0a
+	e
+sta5	sti a5
+	st 0060,st_skl,$00,$00,$00	;skeleton
+	e
+
+	;a.6
+pta6	pti a6
+	pt 0068,0070,0028,0038,pt_maze,fb
+	pt 00e0,0000,0010,00b0,pt_rigt,a7
+	e
+sta6	sti a6
+	st 00c0,st_trl,$00,$00,$00	;troll/chest
+	e
+
+	;a.7
+pta7	pti a7
+	pt 0000,0000,0010,00b0,pt_left,a6
+	pt 0068,0070,0028,0038,pt_maze,77
+	pt 00e0,0000,0010,00b0,pt_rigt,a8
+	e
+sta7	sti a7
+	e
+
+	;a.8
+pta8	pti a8
+	pt 0000,0000,0010,00b0,pt_left,a7
+	e
+sta8	sti a8
+	st 00b0,st_sto,$00,$00,$00	;stoneman
+	e
+
+	;a.9
+pta9	pti a9
+	pt 0068,0070,0028,0038,pt_maze,4e
+	pt 00e0,0000,0010,00b0,pt_rigt,a9
+	e
+sta9	sti a9
+	st 00d0,st_spi,$00,$00,$00	;spider/chest
+	e
+
+	;a.a
+ptaa	pti aa
+	pt 0000,0000,0010,00b0,pt_left,52
+	pt 0068,0070,0028,0038,pt_maze,5f
+	pt 00e0,0000,0010,00b0,pt_rigt,ab
+	e
+staa	sti aa
+	st 0000,st_gid,$0f
+	e
+
+	;a.b
+ptab	pti ab
+	pt 0000,0000,0010,00b0,pt_left,aa
+	pt 00e0,0000,0010,00b0,pt_rigt,ac
+	e
+stab	sti ab
+	st 0080,st_skl,$00,$00,$00	;skeleton
+	e
+
+	;a.c
+ptac	pti ac
+	pt 0000,0000,0010,00b0,pt_left,ab
+	pt 00e0,0000,0010,00b0,pt_rigt,ad
+	e
+stac	sti ac
+	st 0080,st_ven,$00,$00,$00	;venworm
+	e
+
+	;a.d
+ptad	pti ad
+	pt 0000,0000,0010,00b0,pt_left,ac
+	pt 0068,0070,0028,0038,pt_maze,8f
+	pt 00e0,0000,0010,00b0,pt_rigt,ae
+	e
+stad	sti ad
+	st 0060,st_spc,$01,$00,$00	;spectre
+	st 00a0,st_spc,$01,$00,$00	;spectre
+	e
+
+	;a.e
+ptae	pti ae
+	pt 0068,0070,0028,0038,pt_maze,9e
+	pt 00e0,0000,0010,00b0,pt_rigt,ae
+	e
+stae	sti ae
+	st 00d0,st_wng,$01,$00,$00	;winged serpent
+	e
+
+	;b.0 victory
+ptb0	pti b0
+	e
+stb0	sti b0
+	st 0e90,st_obj,$04	;victory machine
+	st 0de0,st_bar,$00,$00,$00
+	st 0d50,st_adv,$00,$00,$00
+	st 0d18,st_adv,$00,$00,$00
+	st 0c20,st_bar,$00,$00,$00
+	st 0a98,st_mon,$00,$00,$00
+	st 0a68,st_mon,$00,$00,$00
+	st 08f0,st_adv,$00,$00,$00
+	st 0760,st_bar,$00,$00,$00
+	st 0738,st_adv,$00,$00,$00
+	st 05f8,st_wiz,$00,$00,$00
+	st 0450,st_adv,$00,$00,$00
+	st 0428,st_adv,$00,$00,$00
+	st 0410,st_adv,$00,$00,$00
+	st 02e0,st_mon,$00,$00,$00
+	st 0228,st_bar,$00,$00,$00
+	st 01b8,st_adv,$00,$00,$00
+	st 0038,st_obj,$1b	;young woman
+	e
+
+ptl
+ dl pt10
+ dl pt20,pt21
+ dl pt30
+ dl pt40,pt41,pt42,pt43
+ dl pt50,pt51,pt52,pt53,pt54,pt55,pt56
+ dl pt60,pt61,pt62,pt63,pt64,pt65,pt66,pt67,pt68,pt69
+ dl pt70,pt71,pt72,pt73,pt74,pt75,pt76
+ dl pt80,pt81,pt82,pt83,pt84,pt85,pt86
+ dl pt90
+ dl pta0,pta1,pta2,pta3,pta4,pta5,pta6,pta7,pta8,pta9,ptaa,ptab,ptac,ptad,ptae
+ dl ptb0
+pth
+ dh pt10
+ dh pt20,pt21
+ dh pt30
+ dh pt40,pt41,pt42,pt43
+ dh pt50,pt51,pt52,pt53,pt54,pt55,pt56
+ dh pt60,pt61,pt62,pt63,pt64,pt65,pt66,pt67,pt68,pt69
+ dh pt70,pt71,pt72,pt73,pt74,pt75,pt76
+ dh pt80,pt81,pt82,pt83,pt84,pt85,pt86
+ dh pt90
+ dh pta0,pta1,pta2,pta3,pta4,pta5,pta6,pta7,pta8,pta9,ptaa,ptab,ptac,ptad,ptae
+ dh ptb0
+
+stl
+ dl st10
+ dl st20,st21
+ dl st30
+ dl st40,st41,st42,st43
+ dl st50,st51,st52,st53,st54,st55,st56
+ dl st60,st61,st62,st63,st64,st65,st66,st67,st68,st69
+ dl st70,st71,st72,st73,st74,st75,st76
+ dl st80,st81,st82,st83,st84,st85,st86
+ dl st90
+ dl sta0,sta1,sta2,sta3,sta4,sta5,sta6,sta7,sta8,sta9,staa,stab,stac,stad,stae
+ dl stb0
+sth
+ dh st10
+ dh st20,st21
+ dh st30
+ dh st40,st41,st42,st43
+ dh st50,st51,st52,st53,st54,st55,st56
+ dh st60,st61,st62,st63,st64,st65,st66,st67,st68,st69
+ dh st70,st71,st72,st73,st74,st75,st76
+ dh st80,st81,st82,st83,st84,st85,st86
+ dh st90
+ dh sta0,sta1,sta2,sta3,sta4,sta5,sta6,sta7,sta8,sta9,staa,stab,stac,stad,stae
+ dh stb0
+
